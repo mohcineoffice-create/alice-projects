@@ -1,0 +1,33 @@
+services:
+  im-jx:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: im-jx-smart-suite
+    ports:
+      - "8080:8080"
+    environment:
+      # OBLIGATOIRE : aucune valeur par défaut ici volontairement. L'application refuse
+      # de démarrer si SECRET_KEY n'est pas définie (voir backend/app/auth.py).
+      # Générer une clé forte avec : openssl rand -hex 32
+      # Puis créer un fichier .env à la racine (voir .env.example) avec :
+      #   SECRET_KEY=<la clé générée>
+      - SECRET_KEY=${SECRET_KEY:?La variable SECRET_KEY doit être définie dans .env — voir .env.example}
+      - DATABASE_PATH=/data/imjx.db
+      # Origines autorisées pour les appels API (séparées par des virgules). À adapter au
+      # domaine réel une fois déployé derrière un nom de domaine / reverse proxy.
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:8080}
+      # false (défaut) = seul un compte admin avec mot de passe aléatoire est créé au
+      # premier démarrage (voir les logs). true = jeu de comptes de démonstration avec
+      # mots de passe faibles connus -> JAMAIS en production.
+      - ENABLE_DEMO_SEED=${ENABLE_DEMO_SEED:-false}
+      - ALARM_ESCALATION_DELAY_MINUTES=${ALARM_ESCALATION_DELAY_MINUTES:-15}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - im_jx_data:/data
+    restart: unless-stopped
+    # Le HEALTHCHECK est défini dans backend/Dockerfile (interroge /api/health) : Docker
+    # peut ainsi détecter et redémarrer un conteneur bloqué en interne, pas seulement planté.
+
+volumes:
+  im_jx_data:

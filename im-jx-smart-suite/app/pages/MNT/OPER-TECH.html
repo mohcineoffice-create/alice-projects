@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - Maintenance Execution Node</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>html,body{overscroll-behavior-y:contain;}</style>
+    <script>window.IMJX_PAGE = { department: "MNT", page: "OPER-TECH", roles: ["operator", "technician"] };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans select-none">
+
+    <div class="max-w-5xl mx-auto bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden mb-12">
+        
+        <!-- الهيدر الذكي مع مؤشر المزامنة -->
+        <div class="bg-slate-950 p-4 flex justify-between items-center border-b-2 border-red-500">
+            <div>
+                <h1 class="text-lg font-bold text-red-400 tracking-wider flex items-center gap-2">
+                    <span>IM JX - Maintenance Control Node</span>
+                    <span id="syncIndicator" class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System Live"></span>
+                </h1>
+                <p id="syncStatusText" class="text-[9px] text-emerald-400 uppercase font-mono tracking-widest">Tech Server Sync: Active</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <input type="date" id="repDate" onchange="triggerAutoSync()" class="bg-slate-800 text-xs p-1 rounded border border-slate-600 text-white font-mono outline-none">
+                <span id="liveClock" class="text-[10px] font-mono text-slate-400">00:00:00</span>
+            </div>
+        </div>
+
+        <!-- سياق التقني والشفت -->
+        <div class="p-4 bg-slate-900/40 border-b border-slate-700 grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Technician Name:</label>
+                <input type="text" id="techName" placeholder="Enter Tech Name" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-red-400 font-bold outline-none">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shift:</label>
+                <select id="techShift" onchange="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                    <option value="A">Shift A</option>
+                    <option value="B">Shift B</option>
+                    <option value="C">Shift C</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Production Line:</label>
+                <select id="lineSelect" onchange="updateLineMachines(); triggerAutoSync();" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                    <option value="1">Line 1</option>
+                    <option value="2">Line 2</option>
+                    <option value="3">Line 3</option>
+                    <option value="4">Line 4</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Machine:</label>
+                <select id="machineSelect" onchange="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-yellow-400 font-bold outline-none">
+                    <!-- كيتعمر ديناميكيا -->
+                </select>
+            </div>
+        </div>
+
+        <div class="p-3 md:p-4 space-y-6">
+
+            <!-- 1. تقرير التدخل الفني وإصلاح الآلات (Machine Repair Report) -->
+            <div class="bg-slate-900/60 p-4 rounded-lg border border-slate-700 space-y-4">
+                <h2 class="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">🛠️ Machine Maintenance Interventions</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Breakdown Type Category:</label>
+                        <select id="breakdownType" onchange="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                            <option value="MECHANICAL">Mechanical Failure</option>
+                            <option value="ELECTRICAL">Electrical / Sensor Issue</option>
+                            <option value="HYDRAULIC_PNEUMATIC">Hydraulic / Pneumatic Failure</option>
+                            <option value="SOFTWARE_CNC">CNC Program / Parameter Offset</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Spare Parts Used (If Any):</label>
+                        <input type="text" id="spareParts" placeholder="e.g., Proximity sensor, O-Ring, Proximity switch" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-slate-300 outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">🚨 Problem Description (Wasf l-Mochkil):</label>
+                        <textarea id="problemDesc" rows="3" placeholder="Describe the symptoms or error code detected..." oninput="triggerAutoSync()" class="w-full p-2 bg-slate-950 border border-slate-700 rounded text-slate-100 font-mono text-xs outline-none resize-none placeholder-slate-700"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">✅ Action Taken / Solution (Kifach t-Hal):</label>
+                        <textarea id="solutionDesc" rows="3" placeholder="Describe the technical fix or action implemented to resolve the breakdown..." oninput="triggerAutoSync()" class="w-full p-2 bg-slate-950 border border-slate-700 rounded text-emerald-300 font-mono text-xs outline-none resize-none placeholder-slate-700"></textarea>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Downtime Duration (Minutes):</label>
+                        <input type="number" id="downtimeMinutes" value="0" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-yellow-400 font-mono font-bold outline-none">
+                    </div>
+                    <div class="flex items-end">
+                        <!-- تذكير للتقني بالمزامنة اللحظية -->
+                        <span class="text-[10px] font-mono text-slate-500 italic">Every stroke inside these log blocks updates the central operations grid in real-time.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. لوحة تتبع واستقبال المهام (Active Breakdowns & Tasks Board) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                    <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">📋 Dispatch Maintenance Queue & Alarms</h2>
+                    <span class="text-[9px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">Source: TL Maintenance / Active Reclam</span>
+                </div>
+
+                <!-- قائمة المهام المستعجلة الموجهة للتقني -->
+                <div class="space-y-2" id="techTasksContainer">
+                    
+                    <!-- مهمة 1: جاية من الريكلاماسيون (أعطال خطيرة) -->
+                    <div class="bg-slate-950 p-3 rounded border border-red-900/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-red-900/50 text-red-400 border border-red-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase font-mono">🚨 CRITICAL RECLAMATION</span>
+                                <span class="text-slate-500 font-mono text-[10px]">Time: 14:10</span>
+                                <span class="text-slate-400 font-mono text-[10px]">Line 1 - M042</span>
+                            </div>
+                            <p class="text-slate-200 font-mono font-bold">Spline Rolling machine M042 stopped completely. Main hydraulic motor overheating alarm.</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                            <select onchange="updateTaskStatus(this); triggerAutoSync();" class="bg-slate-950 border border-slate-600 rounded p-1 text-xs font-bold text-red-400 outline-none">
+                                <option value="PENDING">⏳ Pending</option>
+                                <option value="IN_PROGRESS">⚙️ In Progress</option>
+                                <option value="SOLVED">✅ Solved / Closed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- مهمة 2: جاية من عند الـ Team Leader صيانة -->
+                    <div class="bg-slate-950 p-3 rounded border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-amber-900/50 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase font-mono">From: Maintenance TL</span>
+                                <span class="text-slate-500 font-mono text-[10px]">Time: 15:05</span>
+                                <span class="text-slate-400 font-mono text-[10px]">Line 4 - Doosan</span>
+                            </div>
+                            <p class="text-slate-200 font-mono font-bold">Check tool adjustment cylinder layout on Doosan CNC. Intermittent pressure drops reported.</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                            <select onchange="updateTaskStatus(this); triggerAutoSync();" class="bg-slate-950 border border-slate-600 rounded p-1 text-xs font-bold text-amber-400 outline-none">
+                                <option value="PENDING">⏳ Pending</option>
+                                <option value="IN_PROGRESS">⚙️ In Progress</option>
+                                <option value="SOLVED">✅ Solved / Closed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- زر مسح البيانات وتصفير اللوحة -->
+            <div class="pt-2">
+                <button type="button" onclick="resetTechDashboard()" class="w-full bg-red-600/10 hover:bg-red-600/20 text-red-400 py-2 rounded-lg text-xs uppercase border border-red-500/20 transition-all font-mono">Reset Maintenance Node</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center text-[10px] text-slate-500 font-mono pb-8 uppercase tracking-widest">
+        IM JX Tech Suite v7.9 &bull; Maintenance Node Execution System
+    </div>
+
+    <script>
+        let syncTimeout = null;
+        // googleScriptUrl remplacé par le backend IM JX (voir shared/im-jx-client.js)
+
+        // داتا الآلات ديال المصنع كامل لتسهيل الاختيار للتقني
+        const lineData = {
+            "1": ["M035 (Centring)", "M008 (CNC)", "M009 (CNC)", "P3-055 (Boot Roll)", "M042 (Spline)", "M010 (Grooving)", "M130 (Male Shank)"],
+            "2": ["M094 (Centring)", "M076 (Centring)", "M077 (CNC)", "M068 (CNC)", "New Machine", "M071 (Spline)", "M067 (Grooving)"],
+            "3": ["M131 (Centring)", "M132 (Centring)", "M040 (CNC)", "M041 (CNC)", "M101 (CNC)", "M102 (CNC)", "M122 (Spline)", "M069 (Grooving)", "M011 (Grooving)"],
+            "4": ["M115 (Centring)", "M078 (Centring)", "M147 (Centring)", "M146 (Centring)", "M124 (CNC)", "M125 (CNC)", "M126 (CNC)", "M127 (CNC)", "Doosan", "MTE4 (Boot)", "MTE5 (Boot)", "M145 (Spline)", "M160 (Spline)", "M128 (Grooving)", "M129 (Grooving)"]
+        };
+
+        document.getElementById('repDate').value = new Date().toISOString().split('T')[0];
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        function updateLineMachines() {
+            const selectedLine = document.getElementById('lineSelect').value;
+            const machineSelect = document.getElementById('machineSelect');
+            machineSelect.innerHTML = "";
+
+            if (lineData[selectedLine]) {
+                lineData[selectedLine].forEach(machine => {
+                    const opt = document.createElement('option');
+                    opt.value = machine;
+                    opt.innerText = machine;
+                    machineSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function updateTaskStatus(selectElement) {
+            if (selectElement.value === 'SOLVED') {
+                selectElement.className = "bg-slate-950 border border-emerald-600 rounded p-1 text-xs font-bold text-emerald-400 outline-none";
+                selectElement.parentElement.parentElement.className = "bg-slate-950/40 p-3 rounded border border-emerald-950/60 opacity-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs transition-all";
+            } else if (selectElement.value === 'IN_PROGRESS') {
+                selectElement.className = "bg-slate-950 border border-blue-600 rounded p-1 text-xs font-bold text-blue-400 outline-none";
+                selectElement.parentElement.parentElement.className = "bg-slate-950 p-3 rounded border border-blue-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs transition-all";
+            } else {
+                selectElement.className = "bg-slate-950 border border-slate-600 rounded p-1 text-xs font-bold text-red-400 outline-none";
+                selectElement.parentElement.parentElement.className = "bg-slate-950 p-3 rounded border border-red-950 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs transition-all";
+            }
+        }
+
+        // 📦 تجميع تقرير الصيانة كامل لإرساله للـ Sheets
+        function buildTechPayload(techName) {
+            let parts = [];
+            parts.push("IM_MAINTENANCE_NODE");
+            parts.push(document.getElementById('repDate').value);
+            parts.push(techName);
+            parts.push(`SHIFT_${document.getElementById('techShift').value}`);
+            parts.push(`LINE_${document.getElementById('lineSelect').value}`);
+            parts.push(`MACHINE_${document.getElementById('machineSelect').value}`);
+            parts.push(`CAT_${document.getElementById('breakdownType').value}`);
+            parts.push(`SPARE:${document.getElementById('spareParts').value.trim() || "NONE"}`);
+            
+            const prob = document.getElementById('problemDesc').value.trim() || "No Description";
+            const sol = document.getElementById('solutionDesc').value.trim() || "No Solution Details";
+            const dt = document.getElementById('downtimeMinutes').value || "0";
+            
+            parts.push(`PROB:${prob}`);
+            parts.push(`SOL:${sol}`);
+            parts.push(`DOWNTIME_MIN:${dt}`);
+
+            // تجميع حالات المهام المفتوحة ف الواجهة حالياً لمعرفة التحديثات
+            let queueStates = [];
+            const taskElements = document.getElementById('techTasksContainer').children;
+            for (let i = 0; i < taskElements.length; i++) {
+                const desc = taskElements[i].querySelector('p').innerText;
+                const status = taskElements[i].querySelector('select').value;
+                queueStates.push(`[QueueTask_${i}:${status}|Desc:${desc}]`);
+            }
+            parts.push(`QUEUE_LOG:${queueStates.join(',')}`);
+
+            return parts.join(";");
+        }
+
+        // 🔄 محرك المزامنة التلقائية بالخلفية للتقني
+        function triggerAutoSync() {
+            const technician = document.getElementById('techName').value.trim();
+            if (syncTimeout) clearTimeout(syncTimeout);
+            
+            if (!technician) {
+                setSyncUIStatus('waiting', 'Enter Technician Name to grant server sync privileges.');
+                return;
+            }
+
+            setSyncUIStatus('pending', 'Intervention logs modified... Syncing soon');
+
+            syncTimeout = setTimeout(() => {
+                executeBackgroundSync(technician);
+            }, 1500);
+        }
+
+        function executeBackgroundSync(techName) {
+            setSyncUIStatus('syncing', 'Uploading fix logs to central tech database...');
+            const payload = buildTechPayload(techName);
+
+            IMJX.sync(payload)
+            .then(() => {
+                setSyncUIStatus('success', 'Maintenance ledger synchronized flawlessly');
+            })
+            .catch(err => {
+                console.error(err);
+                setSyncUIStatus('error', 'Network delay. Auto-retrying on next modification...');
+            });
+        }
+
+        function setSyncUIStatus(state, message) {
+            const ind = document.getElementById('syncIndicator');
+            const txt = document.getElementById('syncStatusText');
+            txt.innerText = message;
+
+            if (state === 'success') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
+                txt.className = "text-[9px] text-emerald-400 uppercase font-mono tracking-wider";
+            } else if (state === 'syncing') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping";
+                txt.className = "text-[9px] text-blue-400 uppercase font-mono tracking-wider";
+            } else if (state === 'pending') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                txt.className = "text-[9px] text-amber-400 uppercase font-mono tracking-wider";
+            } else if (state === 'waiting') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-slate-600";
+                txt.className = "text-[9px] text-slate-400 uppercase font-mono tracking-wider";
+            } else if (state === 'error') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce";
+                txt.className = "text-[9px] text-red-400 uppercase font-mono tracking-wider font-bold";
+            }
+        }
+
+        function resetTechDashboard() {
+            if (confirm("Purge current maintenance input cache?")) {
+                document.getElementById('techName').value = "";
+                document.getElementById('spareParts').value = "";
+                document.getElementById('problemDesc').value = "";
+                document.getElementById('solutionDesc').value = "";
+                document.getElementById('downtimeMinutes').value = "0";
+                initAll();
+            }
+        }
+
+        function initAll() {
+            updateLineMachines();
+            setSyncUIStatus('waiting', 'System terminal booted. Standby for input logs.');
+        }
+
+        initAll();
+    </script>
+</body>
+</html>

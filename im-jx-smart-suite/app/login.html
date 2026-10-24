@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>IM JX Smart Suite - Connexion</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="w-full max-w-sm bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden">
+    <div class="bg-slate-950 p-5 border-b-2 border-blue-500 text-center">
+      <h1 class="text-lg font-bold text-blue-400 tracking-wider">IM JX Smart Suite</h1>
+      <p class="text-[10px] text-slate-400 uppercase font-mono">Connexion poste de travail</p>
+    </div>
+    <form id="loginForm" class="p-5 space-y-3">
+      <div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Identifiant</label>
+        <input id="username" type="text" required autocomplete="username" class="w-full p-2 bg-slate-900 border border-slate-600 rounded text-white outline-none">
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Mot de passe</label>
+        <input id="password" type="password" required autocomplete="current-password" class="w-full p-2 bg-slate-900 border border-slate-600 rounded text-white outline-none">
+      </div>
+      <p id="errorMsg" class="text-red-400 text-xs hidden"></p>
+      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 font-bold py-2 rounded text-sm uppercase transition-all">Se connecter</button>
+    </form>
+  </div>
+  <div id="demoBox" class="hidden w-full max-w-sm mt-4 bg-amber-950/60 border border-amber-600 rounded-xl p-4 text-xs text-amber-100">
+    <p class="font-bold text-amber-300 mb-2">Version de démonstration — données fictives</p>
+    <p class="mb-2 text-amber-200/80">Cliquez sur un compte pour le remplir :</p>
+    <div class="grid grid-cols-1 gap-1 font-mono" id="demoAccounts"></div>
+  </div>
+
+<script>
+// department + role -> page de destination
+const ROUTES = {
+  PROD: { operator: "/pages/PROD/PRODUCTION.html", technician: "/pages/PROD/TECHNIC.html", tl: "/pages/PROD/TL.html" },
+  PED:  { operator: "/pages/PED/OPER.html",        technician: "/pages/PED/TECH.html",     tl: "/pages/PED/TL.html" },
+  MNT:  { operator: "/pages/MNT/OPER-TECH.html",   technician: "/pages/MNT/OPER-TECH.html", tl: "/pages/MNT/TL.html" },
+  QUALITY: { operator: "/pages/QUALITY/OPER.html", technician: "/pages/QUALITY/TECH.html", tl: "/pages/QUALITY/TL.html" },
+  METROLOGIE: { technician: "/pages/METROLOGIE/TECH.html" },
+  METALLURGIE: { operator: "/pages/METALLURGIE/OPER.html" },
+};
+
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const errorMsg = document.getElementById("errorMsg");
+  errorMsg.classList.add("hidden");
+
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) throw new Error("Identifiants incorrects");
+    const session = await res.json();
+    localStorage.setItem("imjx_session", JSON.stringify(session));
+
+    if (session.role === "admin") {
+      window.location.href = "/admin.html";
+    } else {
+      const dest = (ROUTES[session.department] || {})[session.role];
+      if (!dest) {
+        errorMsg.textContent = `⚠️ Aucune page configurée pour ${session.department}/${session.role}. Contacte l'admin.`;
+        errorMsg.classList.remove("hidden");
+        return;
+      }
+      window.location.href = dest;
+    }
+  } catch (err) {
+    errorMsg.textContent = "❌ " + err.message;
+    errorMsg.classList.remove("hidden");
+  }
+});
+
+// Version de démonstration : afficher les comptes de test
+fetch("/api/demo-info").then(r => r.json()).then(info => {
+  if (!info.demo) return;
+  const accounts = [
+    ["admin", "admin123", "Administrateur (Command Center)"],
+    ["prod_operator", "prod123", "Opérateur production"],
+    ["prod_tl", "prod123", "Team Leader production"],
+    ["mnt_tech", "mnt123", "Technicien maintenance"],
+    ["quality_tl", "qual123", "Team Leader qualité"],
+  ];
+  const box = document.getElementById("demoAccounts");
+  accounts.forEach(([u, p, label]) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "text-left px-2 py-1 rounded bg-slate-900/60 hover:bg-slate-900";
+    b.textContent = u + " / " + p + " — " + label;
+    b.onclick = () => { document.getElementById("username").value = u; document.getElementById("password").value = p; };
+    box.appendChild(b);
+  });
+  document.getElementById("demoBox").classList.remove("hidden");
+}).catch(() => {});
+</script>
+
+<!-- Pied de page de marque unifié — identique à celui injecté par shared/im-jx-client.js sur le reste de l'app -->
+<div style="position:fixed;bottom:0;left:0;right:0;z-index:99997;text-align:center;font-family:monospace;font-size:9px;letter-spacing:.06em;color:#64748b;background:rgba(2,6,23,.9);border-top:1px solid #1e293b;padding:3px 0;">IM JX Smart Suite · by NAJAR JX</div>
+</body>
+</html>

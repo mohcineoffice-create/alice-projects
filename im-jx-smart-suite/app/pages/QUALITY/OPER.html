@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - Quality Control Node</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>html,body{overscroll-behavior-y:contain;}</style>
+    <script>window.IMJX_PAGE = { department: "QUALITY", page: "OPER", roles: ["operator"] };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans select-none">
+
+    <div class="max-w-4xl mx-auto bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden mb-12">
+        <div class="bg-slate-950 p-4 flex justify-between items-center border-b-2 border-emerald-500">
+            <div>
+                <h1 class="text-lg font-bold text-emerald-400 tracking-wider flex items-center gap-2">
+                    <span>IM JX - Quality Control Node</span>
+                    <span id="syncIndicator" class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System Synced"></span>
+                </h1>
+                <p id="syncStatusText" class="text-[9px] text-emerald-400 uppercase font-mono tracking-widest">Cloud Connection: Ready</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <input type="date" id="repDate" onchange="triggerAutoSync()" class="bg-slate-800 text-xs p-1 rounded border border-slate-600 text-white font-mono outline-none">
+                <span id="liveClock" class="text-[10px] font-mono text-slate-400">00:00:00</span>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex border-b border-slate-700 bg-slate-900/50 text-xs font-bold text-center">
+            <button type="button" onclick="switchTab('insp-section', this)" id="tab-insp" class="flex-1 py-3 bg-slate-800 text-emerald-400 border-b-2 border-emerald-500 transition-all">STOP-LIGHT INSPECTION</button>
+            <button type="button" onclick="switchTab('nc-section', this)" id="tab-nc" class="flex-1 py-3 text-slate-400 border-b-2 border-transparent transition-all">NON-CONFORMITÉS</button>
+            <button type="button" onclick="switchTab('reclam-section', this)" id="tab-reclam" class="flex-1 py-3 text-slate-400 border-b-2 border-transparent transition-all">ALARMS RECLAM</button>
+        </div>
+
+        <form id="qualityForm" class="p-3 md:p-4 space-y-4" oninput="triggerAutoSync()" onchange="triggerAutoSync()">
+            <!-- Contexte ligne / process / machine -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-900/60 p-3 rounded-lg border border-slate-700 text-xs">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Production Line:</label>
+                    <select id="lineSelect" onchange="updateProcessOptions(); triggerAutoSync();" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                        <option value="1">Line 1</option>
+                        <option value="2">Line 2</option>
+                        <option value="3">Line 3</option>
+                        <option value="4">Line 4</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Process:</label>
+                    <select id="processSelect" onchange="updateMachineOptions(); triggerAutoSync();" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none"></select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Machine:</label>
+                    <select id="machineSelect" onchange="triggerAutoSync()" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-emerald-400 font-bold outline-none"></select>
+                </div>
+            </div>
+
+            <!-- Contrôleur / Shift -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-900/60 p-3 rounded-lg border border-slate-700 text-xs">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Quality Controller Name:</label>
+                    <input type="text" id="opName" required oninput="logFillContext()" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shift Type:</label>
+                    <select id="shiftPattern" onchange="updateHoursByShift(); triggerAutoSync();" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded font-bold text-yellow-400 outline-none">
+                        <option value="8H">8 Hours Shift</option>
+                        <option value="12H">12 Hours Shift</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shift:</label>
+                    <select id="opShift" onchange="updateHoursByShift(); triggerAutoSync();" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                        <option value="A">Shift A</option>
+                        <option value="B">Shift B</option>
+                        <option value="C">Shift C</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Heat / Forging No:</label>
+                    <input type="text" id="heatNo" placeholder="Batch No" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white uppercase outline-none">
+                </div>
+            </div>
+
+            <!-- Section 1 : Stop-light Inspection -->
+            <div id="insp-section" class="space-y-4">
+                <div class="bg-slate-900/30 p-3 rounded-lg border border-slate-700 space-y-1.5">
+                    <h3 class="text-xs font-bold text-emerald-400 uppercase flex justify-between items-center">
+                        <span>Hourly 5 Pcs Stop-Light Matrix</span>
+                        <span id="fillMetaLabel" class="text-[9px] text-slate-400 font-mono"></span>
+                    </h3>
+                    <div class="hidden sm:grid grid-cols-5 gap-2 text-center text-[10px] font-bold text-slate-400 uppercase border-b border-slate-700 pb-1">
+                        <div>Time Slot</div><div>Sampled Pcs</div><div>Result</div><div>Critical Dim (mm)</div><div>Verdict</div>
+                    </div>
+                    <div id="hourlyRowsContainer" class="space-y-1.5"></div>
+                </div>
+
+                <div class="bg-slate-900/30 p-3 rounded-lg border border-slate-700 grid grid-cols-3 gap-2 text-xs">
+                    <div><label class="block text-[10px] text-slate-400 mb-1">Control Plan Ref:</label><input type="text" id="ctrlPlanRef" placeholder="CP-001" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white outline-none"></div>
+                    <div><label class="block text-[10px] text-slate-400 mb-1">Sampling Freq (pcs):</label><input type="number" id="sampFreq" value="50" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white outline-none"></div>
+                    <div><label class="block text-[10px] text-slate-400 mb-1">Cumulated OK / NOK:</label><input type="text" id="cumStats" readonly value="0 / 0" class="w-full p-1.5 bg-slate-900 border border-slate-700 rounded text-cyan-400 text-center font-bold outline-none"></div>
+                </div>
+            </div>
+
+            <!-- Section 2 : Non-conformités -->
+            <div id="nc-section" class="hidden space-y-3">
+                <div class="bg-slate-900/40 p-3 rounded-lg border border-slate-700 space-y-2">
+                    <h3 class="text-xs font-bold text-amber-400 uppercase">Non-Conformity Log (Defect Registration)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1">Defect Type:</label>
+                            <select id="defectType" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-red-400 font-bold outline-none">
+                                <option value="DIM_OFFSET">Dimensional Offset</option>
+                                <option value="SURFACE_DEFECT">Surface / Cosmetic Defect</option>
+                                <option value="THREAD_DEFECT">Thread / Denture Defect</option>
+                                <option value="MATERIAL_DEFECT">Material Defect</option>
+                                <option value="ASSEMBLY_DEFECT">Assembly Defect</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1">Quantity Affected (Pcs):</label>
+                            <input type="number" id="ncQty" value="0" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-red-400 font-bold text-center outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1">Disposition:</label>
+                            <select id="ncDisposition" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white outline-none">
+                                <option value="SCRAP">Scrap</option>
+                                <option value="REWORK">Rework</option>
+                                <option value="SORT_100">100% Sorting Required</option>
+                                <option value="HOLD">Hold for Decision</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Description:</label>
+                        <textarea id="ncNotes" rows="2" placeholder="Detailed defect description..." class="w-full p-2 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono text-xs outline-none placeholder-slate-600 resize-none"></textarea>
+                    </div>
+                    <div id="ncLogList" class="space-y-1 text-[11px] font-mono text-slate-400"></div>
+                    <button type="button" onclick="addNcEntry()" class="w-full bg-amber-600/20 hover:bg-amber-600/40 text-amber-400 font-bold py-2 rounded text-xs uppercase border border-amber-500/30 transition-all">Register Non-Conformity</button>
+                </div>
+            </div>
+
+            <!-- Section 3 : Alarms & Reclamations -->
+            <div id="reclam-section" class="hidden space-y-3">
+                <div class="bg-slate-900/40 p-4 rounded-lg border border-slate-700 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                        <h3 class="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+                            <span>🚨 Alarms & Logs Escalation</span>
+                        </h3>
+                        <span class="text-[9px] text-slate-400 uppercase font-mono">Instant Node Notification</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Department:</label>
+                            <select id="reclamTarget" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                                <option value="PROD">Production Team</option>
+                                <option value="TECHNICIEN">Maintenance Team (Technicien)</option>
+                                <option value="ADMINISTRATION">Administration / Logistics</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Issue Category:</label>
+                            <select id="reclamCategory" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-yellow-400 font-bold outline-none">
+                                <option value="QUALITY_HOLD">Batch Hold — Quality Block</option>
+                                <option value="GEAR_MICRO_OFFSET">Micro Dimension Offset</option>
+                                <option value="RECURRING_DEFECT">Recurring Defect Pattern</option>
+                                <option value="SAFETY_HAZARD">Safety / E-Stop Concern</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Detailed Description:</label>
+                        <textarea id="reclamText" rows="3" placeholder="Write logs or note details here..." class="w-full p-2 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono text-xs outline-none placeholder-slate-600 resize-none"></textarea>
+                    </div>
+
+                    <div class="pt-1">
+                        <button type="button" onclick="sendInstantReclamation()" id="btnSendReclam" class="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 font-bold py-2.5 rounded text-xs uppercase border border-red-500/40 transition-all tracking-wider flex items-center justify-center gap-2">
+                            <span>Trigger Active Alarm 📢</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <button type="button" onclick="resetFormInputs()" class="w-full bg-red-600/10 hover:bg-red-600/20 text-red-400 py-2 rounded-lg text-xs uppercase border border-red-500/20 transition-all">Reset Form</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="text-center text-[10px] text-slate-500 font-mono pb-8 uppercase tracking-widest">
+        IM JX Smart Suite &bull; Quality Control Node
+    </div>
+
+    <script>
+        let ncEntries = [], okCount = 0, nokCount = 0, initialFillTime = "", initialFillOp = "";
+        let syncTimeout = null;
+
+        const hoursData = {
+            "8H": {
+                "A": ["22-23", "23-00", "00-01", "01-02", "02-03", "03-04", "04-05", "05-06"],
+                "B": ["06-07", "07-08", "08-09", "09-10", "10-11", "11-12", "12-13", "13-14"],
+                "C": ["14-15", "15-16", "16-17", "17-18", "18-19", "19-20", "20-21", "21-22"]
+            },
+            "12H": {
+                "A": ["18-19", "19-20", "20-21", "21-22", "22-23", "23-00", "00-01", "01-02", "02-03", "03-04", "04-05", "05-06"],
+                "B": ["06-07", "07-08", "08-09", "09-10", "10-11", "11-12", "12-13", "13-14", "14-15", "15-16", "16-17", "17-18"]
+            }
+        };
+
+        const lineData = {
+            "1": { "Centring & Facing": ["M035"], "CNC Turning": ["M008", "M009"], "Boot rolling": ["P3-055"], "Spline Rolling": ["M042"], "Grooving": ["M010"], "facing male shank": ["M130"] },
+            "2": { "Centring & Facing": ["M094", "M076"], "CNC Turning": ["M077", "M068"], "Boot rolling": ["New"], "Spline Rolling": ["M071"], "Grooving": ["M067"] },
+            "3": { "Centring & Facing": ["M131", "M132"], "CNC Turning": ["M040", "M041", "M101", "M102"], "Spline Rolling": ["M122"], "Grooving": ["M069", "M011"] },
+            "4": { "Centring & Facing": ["M115", "M078", "M147", "M146"], "CNC Turning": ["M124", "M125", "M126", "M127", "Doosan"], "Boot rolling": ["MTE4", "MTE5"], "Spline Rolling": ["M145", "M160"], "Grooving": ["M128", "M129"] }
+        };
+
+        document.getElementById('repDate').value = new Date().toISOString().split('T')[0];
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        function switchTab(id, btnElement) {
+            document.getElementById('insp-section').classList.add('hidden');
+            document.getElementById('nc-section').classList.add('hidden');
+            document.getElementById('reclam-section').classList.add('hidden');
+            document.getElementById(id).classList.remove('hidden');
+
+            const tabs = btnElement.parentElement.children;
+            for (let tab of tabs) {
+                tab.classList.remove('bg-slate-800', 'text-emerald-400', 'border-emerald-500');
+                tab.classList.add('text-slate-400', 'border-transparent');
+            }
+            btnElement.classList.remove('text-slate-400', 'border-transparent');
+            btnElement.classList.add('bg-slate-800', 'text-emerald-400', 'border-emerald-500');
+        }
+
+        function logFillContext() {
+            const op = document.getElementById('opName').value.trim();
+            if (op && !initialFillTime) {
+                initialFillTime = new Date().toTimeString().split(' ')[0].substring(0, 5);
+                initialFillOp = op;
+                document.getElementById('fillMetaLabel').innerText = `(${op} ${initialFillTime})`;
+            }
+        }
+
+        function updateProcessOptions() {
+            const line = document.getElementById('lineSelect').value;
+            const processSelect = document.getElementById('processSelect');
+            processSelect.innerHTML = "";
+            Object.keys(lineData[line]).forEach(proc => {
+                const opt = document.createElement('option');
+                opt.value = proc;
+                opt.innerText = proc;
+                processSelect.appendChild(opt);
+            });
+            updateMachineOptions();
+        }
+
+        function updateMachineOptions() {
+            const line = document.getElementById('lineSelect').value;
+            const proc = document.getElementById('processSelect').value;
+            const machineSelect = document.getElementById('machineSelect');
+            machineSelect.innerHTML = "";
+            if (lineData[line] && lineData[line][proc]) {
+                lineData[line][proc].forEach(mac => {
+                    const opt = document.createElement('option');
+                    opt.value = mac;
+                    opt.innerText = mac;
+                    machineSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function updateHoursByShift() {
+            const p = document.getElementById('shiftPattern').value;
+            const s = document.getElementById('opShift').value;
+            const slots = (hoursData[p] && hoursData[p][s]) ? hoursData[p][s] : [];
+            const container = document.getElementById('hourlyRowsContainer');
+
+            container.innerHTML = slots.length > 0 ? "" : "<p class='text-red-400 text-center text-xs py-2'>Shift not available</p>";
+
+            slots.forEach((h, i) => {
+                const row = document.createElement('div');
+                row.className = "grid grid-cols-2 sm:grid-cols-5 gap-2 items-center bg-slate-800 p-2 rounded border border-slate-700 text-xs";
+                row.innerHTML = `
+                    <div class="col-span-2 sm:col-span-1 font-mono font-bold text-slate-300">${h}</div>
+                    <div><input type="number" value="5" id="samp_${i}" class="w-full p-1 bg-slate-900 border border-slate-700 rounded text-center text-slate-400 outline-none"></div>
+                    <div>
+                        <select id="res_${i}" onchange="updateCumStats(); logFillContext();" class="w-full p-1 bg-slate-900 border border-slate-700 rounded font-bold text-center outline-none" style="color:#34d399;">
+                            <option value="OK">🟢 OK</option>
+                            <option value="WARN">🟡 Watch</option>
+                            <option value="NOK">🔴 NOK</option>
+                        </select>
+                    </div>
+                    <div><input type="number" step="0.001" value="0.000" id="dim_${i}" oninput="logFillContext()" class="w-full p-1 bg-slate-900 border border-slate-700 rounded text-center text-cyan-400 outline-none"></div>
+                    <div class="text-center font-bold" id="verdict_${i}">—</div>
+                `;
+                container.appendChild(row);
+            });
+            updateCumStats();
+        }
+
+        function updateCumStats() {
+            const p = document.getElementById('shiftPattern').value;
+            const s = document.getElementById('opShift').value;
+            const slots = (hoursData[p] && hoursData[p][s]) ? hoursData[p][s] : [];
+            okCount = 0; nokCount = 0;
+            slots.forEach((h, i) => {
+                const sel = document.getElementById(`res_${i}`);
+                const verdictEl = document.getElementById(`verdict_${i}`);
+                if (!sel) return;
+                if (sel.value === "NOK") { nokCount++; verdictEl.innerText = "REJECT"; verdictEl.className = "text-center font-bold text-red-400"; }
+                else if (sel.value === "WARN") { verdictEl.innerText = "WATCH"; verdictEl.className = "text-center font-bold text-amber-400"; okCount++; }
+                else { okCount++; verdictEl.innerText = "PASS"; verdictEl.className = "text-center font-bold text-emerald-400"; }
+            });
+            document.getElementById('cumStats').value = `${okCount} / ${nokCount}`;
+        }
+
+        function addNcEntry() {
+            const type = document.getElementById('defectType').value;
+            const qty = document.getElementById('ncQty').value || "0";
+            const disp = document.getElementById('ncDisposition').value;
+            const notes = document.getElementById('ncNotes').value.trim() || "No notes";
+            const time = new Date().toTimeString().split(' ')[0].substring(0, 5);
+            ncEntries.push(`[${time}] ${type} x${qty} -> ${disp} :: ${notes}`);
+            renderNcList();
+            document.getElementById('ncNotes').value = "";
+            triggerAutoSync();
+        }
+
+        function renderNcList() {
+            document.getElementById('ncLogList').innerHTML = ncEntries.map(e => `<div class="bg-slate-950 p-1.5 rounded border border-slate-800">${e}</div>`).join('');
+        }
+
+        function buildPlainTextPayload(operatorName) {
+            let parts = [];
+            parts.push("IM_QUALITY_NODE");
+            parts.push(document.getElementById('repDate').value);
+            parts.push(operatorName);
+            parts.push(`LINE_${document.getElementById('lineSelect').value}`);
+            parts.push(`PROC:${document.getElementById('processSelect').value}`);
+            parts.push(`MAC:${document.getElementById('machineSelect').value}`);
+            parts.push(`SHIFT_${document.getElementById('opShift').value}`);
+            parts.push(document.getElementById('heatNo').value.trim() || "NA");
+            parts.push(`CTRLPLAN:${document.getElementById('ctrlPlanRef').value.trim() || 'NA'}`);
+            parts.push(`CUM:OK-${okCount},NOK-${nokCount}`);
+
+            const p = document.getElementById('shiftPattern').value;
+            const s = document.getElementById('opShift').value;
+            const slots = (hoursData[p] && hoursData[p][s]) ? hoursData[p][s] : [];
+            let hourlyLogs = [];
+            slots.forEach((h, i) => {
+                const samp = document.getElementById(`samp_${i}`)?.value || "0";
+                const res = document.getElementById(`res_${i}`)?.value || "OK";
+                const dim = document.getElementById(`dim_${i}`)?.value || "0.000";
+                hourlyLogs.push(`[Hour:${h}|Samp:${samp}|Res:${res}|Dim:${dim}]`);
+            });
+            parts.push(`HOURS_DATA:${hourlyLogs.join(',')}`);
+            parts.push(`NC_LOG:${ncEntries.join(' | ') || 'None'}`);
+            parts.push(`META_FILL:${initialFillOp || operatorName}@${initialFillTime || '00:00'}`);
+
+            return parts.join(";");
+        }
+
+        function triggerAutoSync() {
+            const operator = document.getElementById('opName').value.trim();
+            if (syncTimeout) clearTimeout(syncTimeout);
+
+            if (!operator) {
+                setSyncUIStatus('waiting', 'Waiting for Controller name...');
+                return;
+            }
+
+            setSyncUIStatus('pending', 'Changes detected... Saving in 1.5s');
+
+            syncTimeout = setTimeout(() => {
+                executeBackgroundSync(operator);
+            }, 1500);
+        }
+
+        function executeBackgroundSync(operatorName) {
+            setSyncUIStatus('syncing', 'Syncing live data to cloud...');
+            const payload = buildPlainTextPayload(operatorName);
+
+            IMJX.sync(payload)
+            .then(() => {
+                setSyncUIStatus('success', 'All changes autosaved');
+            })
+            .catch(err => {
+                console.error(err);
+                setSyncUIStatus('error', 'Sync Failed. Retrying on next input...');
+            });
+        }
+
+        function setSyncUIStatus(state, message) {
+            const ind = document.getElementById('syncIndicator');
+            const txt = document.getElementById('syncStatusText');
+            txt.innerText = message;
+
+            if (state === 'success') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
+                txt.className = "text-[9px] text-emerald-400 uppercase font-mono tracking-wider";
+            } else if (state === 'syncing') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping";
+                txt.className = "text-[9px] text-blue-400 uppercase font-mono tracking-wider";
+            } else if (state === 'pending') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                txt.className = "text-[9px] text-amber-400 uppercase font-mono tracking-wider";
+            } else if (state === 'waiting') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-slate-600";
+                txt.className = "text-[9px] text-slate-400 uppercase font-mono tracking-wider";
+            } else if (state === 'error') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce";
+                txt.className = "text-[9px] text-red-400 uppercase font-mono tracking-wider font-bold";
+            }
+        }
+
+        function sendInstantReclamation() {
+            const operator = document.getElementById('opName').value.trim();
+            if (!operator) { alert("⚠️ أدخل اسم الكونترولور أولاً لربطه بالبلاغ!"); return; }
+
+            const target = document.getElementById('reclamTarget').value;
+            const category = document.getElementById('reclamCategory').value;
+            const textDesc = document.getElementById('reclamText').value.trim() || "No logs.";
+
+            const lineNo = document.getElementById('lineSelect').value;
+            const processName = document.getElementById('processSelect').value;
+            const machineName = document.getElementById('machineSelect').value;
+            const timestamp = new Date().toTimeString().split(' ')[0].substring(0, 5);
+
+            const reclamPayload = `IM_RECLAM;${document.getElementById('repDate').value};${timestamp};${operator};L${lineNo}-${processName}-${machineName};${target};${category};${textDesc}`;
+
+            const btn = document.getElementById('btnSendReclam');
+            btn.innerText = "Transmitting... ⏳";
+            btn.disabled = true;
+
+            IMJX.sync(reclamPayload)
+            .then(() => {
+                alert(`🚨 تم تصعيد البلاغ بنجاح إلى: ${target}`);
+                document.getElementById('reclamText').value = "";
+                btn.innerText = "Trigger Active Alarm 📢";
+                btn.disabled = false;
+            })
+            .catch(err => {
+                console.error(err);
+                alert("❌ فشل إرسال بلاغ الريكلاماسيون.");
+                btn.innerText = "Trigger Active Alarm 📢";
+                btn.disabled = false;
+            });
+        }
+
+        function resetFormInputs() {
+            if (confirm("هل أنت متأكد من مسح البيانات بالكامل؟")) {
+                document.getElementById('qualityForm').reset();
+                ncEntries = [];
+                renderNcList();
+                initAll();
+            }
+        }
+
+        function initAll() {
+            updateProcessOptions();
+            updateHoursByShift();
+            setSyncUIStatus('waiting', 'Ready. Enter Controller name to activate sync node.');
+        }
+
+        initAll();
+    </script>
+</body>
+</html>

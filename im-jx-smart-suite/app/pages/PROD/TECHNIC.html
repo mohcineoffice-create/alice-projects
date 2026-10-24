@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - Floor Control & Task Node</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>html,body{overscroll-behavior-y:contain;}</style>
+    <script>window.IMJX_PAGE = { department: "PROD", page: "TECHNIC", roles: ["technician"] };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans select-none">
+
+    <div class="max-w-6xl mx-auto bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden mb-12">
+        <!-- الهيدر الذكي مع مؤشر المزامنة التلقائية -->
+        <div class="bg-slate-950 p-4 flex justify-between items-center border-b-2 border-blue-500">
+            <div>
+                <h1 class="text-lg font-bold text-blue-400 tracking-wider flex items-center gap-2">
+                    <span>IM JX - Control & Tasks Board</span>
+                    <span id="syncIndicator" class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System Synced"></span>
+                </h1>
+                <p id="syncStatusText" class="text-[9px] text-emerald-400 uppercase font-mono tracking-widest">Live Cloud Sync: Active</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <input type="date" id="repDate" onchange="triggerAutoSync()" class="bg-slate-800 text-xs p-1 rounded border border-slate-600 text-white font-mono outline-none">
+                <span id="liveClock" class="text-[10px] font-mono text-slate-400">00:00:00</span>
+            </div>
+        </div>
+
+        <!-- معلومات الخط والمشغل -->
+        <div class="p-4 bg-slate-900/40 border-b border-slate-700 grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Operator Name:</label>
+                <input type="text" id="opName" placeholder="Enter Name" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Production Line:</label>
+                <select id="lineSelect" onchange="updateLineMachines(); triggerAutoSync();" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                    <option value="1">Line 1</option>
+                    <option value="2">Line 2</option>
+                    <option value="3">Line 3</option>
+                    <option value="4">Line 4</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shift Pattern:</label>
+                <select id="shiftPattern" onchange="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-yellow-400 font-bold outline-none">
+                    <option value="A">Shift A</option>
+                    <option value="B">Shift B</option>
+                    <option value="C">Shift C</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Heat / Forging Batch:</label>
+                <input type="text" id="heatNo" placeholder="Batch No" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white uppercase outline-none">
+            </div>
+        </div>
+
+        <div class="p-3 md:p-4 space-y-6">
+            
+            <!-- 1. لوحة حالة الآلات (Machine Status Table) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-3">
+                <h2 class="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1">⚙️ Live Machine Status Engine</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border border-slate-700 min-w-[500px]">
+                        <thead class="bg-slate-950 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-700">
+                            <tr>
+                                <th class="p-2 border-r border-slate-700">Machine Code</th>
+                                <th class="p-2 border-r border-slate-700 w-40">Status</th>
+                                <th class="p-2 border-r border-slate-700">Active Loss Code</th>
+                                <th class="p-2">Technical Note</th>
+                            </tr>
+                        </thead>
+                        <tbody id="machineStatusTableBody" class="divide-y divide-slate-700 bg-slate-900/20">
+                            <!-- كيتعمر أوتوماتيكياً بناء على الخط -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 2. جدول الإنتاج الإجمالي (Production Metrics Center) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-3">
+                <h2 class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">📊 Shift Production Metrics</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div class="bg-slate-950 p-2.5 rounded border border-slate-700">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Total Target (Pcs):</label>
+                        <input type="number" id="prodTarget" value="1200" oninput="calculateOEE(); triggerAutoSync();" class="w-full bg-transparent text-slate-300 font-mono font-bold text-sm outline-none">
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded border border-slate-700">
+                        <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1">Total Actual OK (Pcs):</label>
+                        <input type="number" id="prodActual" value="0" oninput="calculateOEE(); triggerAutoSync();" class="w-full bg-transparent text-emerald-400 font-mono font-bold text-sm outline-none">
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded border border-slate-700">
+                        <label class="block text-[10px] font-bold text-red-400 uppercase mb-1">Total Rejection (Pcs):</label>
+                        <input type="number" id="prodRejection" value="0" oninput="calculateOEE(); triggerAutoSync();" class="w-full bg-transparent text-red-400 font-mono font-bold text-sm outline-none">
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded border border-emerald-500/30 flex flex-col justify-center items-center">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Shift Efficiency</span>
+                        <span id="oeeLabel" class="text-lg font-black font-mono text-emerald-400">0.0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. لوحة المهام (Operator Tasks Board) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                    <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">📋 Dispatch Tasks & Actions Log</h2>
+                    <span class="text-[9px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">From: Team Leader / Reclam</span>
+                </div>
+                
+                <!-- جدول المهام القادمة والموجهة للمشغل -->
+                <div class="space-y-2" id="tasksContainer">
+                    <!-- نموذج مهمة افتراضية، تقدر تزيد عليهوم أو يجيو من السيرفر -->
+                    <div class="bg-slate-950 p-3 rounded border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-red-900/50 text-red-400 border border-red-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase font-mono">From: Team Leader</span>
+                                <span class="text-slate-500 font-mono text-[10px]">Time: 08:30</span>
+                            </div>
+                            <p class="text-slate-200 font-mono font-bold">Check dimension offset on Spline Rolling machine M042 immediately.</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                            <select onchange="updateTaskStatus(this); triggerAutoSync();" class="bg-slate-950 border border-slate-600 rounded p-1 text-xs font-bold text-amber-400 outline-none">
+                                <option value="PENDING">⏳ Pending</option>
+                                <option value="IN_PROGRESS">⚙️ In Progress</option>
+                                <option value="DONE">✅ Done / Resolved</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950 p-3 rounded border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-blue-900/50 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase font-mono">From: Quality Lab</span>
+                                <span class="text-slate-500 font-mono text-[10px]">Time: 11:15</span>
+                            </div>
+                            <p class="text-slate-200 font-mono font-bold">Perform 5 Pcs Stop-Light Chart audit for the new batch.</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                            <select onchange="updateTaskStatus(this); triggerAutoSync();" class="bg-slate-950 border border-slate-600 rounded p-1 text-xs font-bold text-amber-400 outline-none">
+                                <option value="PENDING">⏳ Pending</option>
+                                <option value="IN_PROGRESS">⚙️ In Progress</option>
+                                <option value="DONE">✅ Done / Resolved</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- زر مسح البيانات وتصفير اللوحة -->
+            <div class="pt-2">
+                <button type="button" onclick="resetDashboard()" class="w-full bg-red-600/10 hover:bg-red-600/20 text-red-400 py-2 rounded-lg text-xs uppercase border border-red-500/20 transition-all font-mono">Reset Control Node</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center text-[10px] text-slate-500 font-mono pb-8 uppercase tracking-widest">
+        IM JX Smart Automation Node v7.0 &bull; Jexas
+    </div>
+
+    <script>
+        let syncTimeout = null;
+        // googleScriptUrl remplacé par le backend IM JX (voir shared/im-jx-client.js)
+
+        // بيانات الآلات حسب الخط (نفس آلات المصنع ديالك)
+        const lineData = {
+            "1": ["M035 (Centring)", "M008 (CNC)", "M009 (CNC)", "P3-055 (Boot Roll)", "M042 (Spline)", "M010 (Grooving)", "M130 (Male Shank)"],
+            "2": ["M094 (Centring)", "M076 (Centring)", "M077 (CNC)", "M068 (CNC)", "New Machine", "M071 (Spline)", "M067 (Grooving)"],
+            "3": ["M131 (Centring)", "M132 (Centring)", "M040 (CNC)", "M041 (CNC)", "M101 (CNC)", "M102 (CNC)", "M122 (Spline)", "M069 (Grooving)", "M011 (Grooving)"],
+            "4": ["M115 (Centring)", "M078 (Centring)", "M147 (Centring)", "M146 (Centring)", "M124 (CNC)", "M125 (CNC)", "M126 (CNC)", "M127 (CNC)", "Doosan", "MTE4 (Boot)", "MTE5 (Boot)", "M145 (Spline)", "M160 (Spline)", "M128 (Grooving)", "M129 (Grooving)"]
+        };
+
+        // إعداد التاريخ الافتراضي والوقت الحي
+        document.getElementById('repDate').value = new Date().toISOString().split('T')[0];
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        // بناء جدول الآلات ديناميكياً عند تغيير الخط
+        function updateLineMachines() {
+            const selectedLine = document.getElementById('lineSelect').value;
+            const tbody = document.getElementById('machineStatusTableBody');
+            tbody.innerHTML = "";
+
+            if (lineData[selectedLine]) {
+                lineData[selectedLine].forEach((machine, index) => {
+                    const row = document.createElement('tr');
+                    row.className = "border-b border-slate-800 hover:bg-slate-900/40 transition-colors";
+                    row.innerHTML = `
+                        <td class="p-2 border-r border-slate-800 font-mono font-bold text-slate-300">${machine}</td>
+                        <td class="p-2 border-r border-slate-800">
+                            <select id="status_${index}" onchange="changeStatusUI(this); triggerAutoSync();" class="w-full p-1 rounded bg-slate-950 font-bold text-xs text-emerald-400 outline-none border border-slate-700">
+                                <option value="RUNNING" class="text-emerald-400">🟢 Running</option>
+                                <option value="BREAKDOWN" class="text-red-400">🔴 Breakdown</option>
+                                <option value="SETUP" class="text-yellow-400">🟡 Setup</option>
+                            </select>
+                        </td>
+                        <td class="p-2 border-r border-slate-800">
+                            <select id="loss_${index}" onchange="triggerAutoSync()" class="w-full p-1 rounded bg-slate-950 font-bold text-xs text-yellow-500 outline-none border border-slate-700">
+                                <option value="OK">No Loss</option>
+                                <option value="B_MECH">Mechanical Breakdown</option>
+                                <option value="B_ELEC">Electrical Breakdown</option>
+                                <option value="S_SETUP">Setup / Changeover</option>
+                                <option value="T_TOOL">Tool Adjustment</option>
+                                <option value="M_MATERIAL">Material Shortage</option>
+                            </select>
+                        </td>
+                        <td class="p-1">
+                            <input type="text" id="note_${index}" placeholder="Write technical log..." oninput="triggerAutoSync()" class="w-full bg-transparent p-1 font-mono text-slate-300 outline-none placeholder-slate-700 text-xs">
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        }
+
+        // تحسين مظهر السيلكت بوكس ف جدول الحالات بناء على الاختيار
+        function changeStatusUI(selectElement) {
+            if (selectElement.value === 'RUNNING') {
+                selectElement.className = "w-full p-1 rounded bg-slate-950 font-bold text-xs text-emerald-400 outline-none border border-slate-700";
+            } else if (selectElement.value === 'BREAKDOWN') {
+                selectElement.className = "w-full p-1 rounded bg-slate-950 font-bold text-xs text-red-400 outline-none border border-slate-700";
+            } else if (selectElement.value === 'SETUP') {
+                selectElement.className = "w-full p-1 rounded bg-slate-950 font-bold text-xs text-yellow-400 outline-none border border-slate-700";
+            }
+        }
+
+        // حساب الـ Efficiency تلقائياً ف الواجهة
+        function calculateOEE() {
+            const tgt = parseFloat(document.getElementById('prodTarget').value) || 0;
+            const act = parseFloat(document.getElementById('prodActual').value) || 0;
+            
+            if (tgt > 0) {
+                const oee = (act / tgt) * 100;
+                document.getElementById('oeeLabel').innerText = `${oee.toFixed(1)}%`;
+            } else {
+                document.getElementById('oeeLabel').innerText = `0.0%`;
+            }
+        }
+
+        // تحسين لون السيلكت الخاص بالمهام
+        function updateTaskStatus(selectElement) {
+            if (selectElement.value === 'DONE') {
+                selectElement.className = "bg-slate-950 border border-emerald-600 rounded p-1 text-xs font-bold text-emerald-400 outline-none";
+                selectElement.parentElement.parentElement.className = "bg-slate-950/40 p-3 rounded border border-emerald-950/60 opacity-60 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs transition-all";
+            } else if (selectElement.value === 'IN_PROGRESS') {
+                selectElement.className = "bg-slate-950 border border-blue-600 rounded p-1 text-xs font-bold text-blue-400 outline-none";
+                selectElement.parentElement.parentElement.className = "bg-slate-950 p-3 rounded border border-blue-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs transition-all";
+            } else {
+                selectElement.className = "bg-slate-950 border border-slate-600 rounded p-1 text-xs font-bold text-amber-400 outline-none";
+                selectElement.parentElement.parentElement.className = "bg-slate-950 p-3 rounded border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs transition-all";
+            }
+        }
+
+        // 📦 تجميع البيانات كاملة ف حزمة واحدة متناسقة لإرسالها
+        function buildDashboardPayload(operatorName) {
+            let parts = [];
+            parts.push("IM_CONTROL_NODE");
+            parts.push(document.getElementById('repDate').value);
+            parts.push(operatorName);
+            parts.push(`LINE_${document.getElementById('lineSelect').value}`);
+            parts.push(`SHIFT_${document.getElementById('shiftPattern').value}`);
+            parts.push(document.getElementById('heatNo').value.trim() || "NA");
+
+            // بيانات الإنتاج الإجمالي
+            const tgt = document.getElementById('prodTarget').value || "0";
+            const act = document.getElementById('prodActual').value || "0";
+            const rej = document.getElementById('prodRejection').value || "0";
+            parts.push(`PROD[Tgt:${tgt}|Act:${act}|Rej:${rej}]`);
+
+            // تجميع حالات كاع الآلات اللي ف الجدول حالياً
+            let machineStates = [];
+            const selectedLine = document.getElementById('lineSelect').value;
+            if (lineData[selectedLine]) {
+                lineData[selectedLine].forEach((machine, index) => {
+                    const status = document.getElementById(`status_${index}`).value;
+                    const loss = document.getElementById(`loss_${index}`).value;
+                    const note = document.getElementById(`note_${index}`).value.trim() || "NoLog";
+                    machineStates.push(`[Mac:${machine}|Status:${status}|Loss:${loss}|Note:${note}]`);
+                });
+            }
+            parts.push(`MACHINES_STATE:${machineStates.join(',')}`);
+
+            // تجميع حالات المهام (Tasks) الحالية ف اللوحة
+            let taskStates = [];
+            const taskElements = document.getElementById('tasksContainer').children;
+            for (let i = 0; i < taskElements.length; i++) {
+                const taskDesc = taskElements[i].querySelector('p').innerText;
+                const taskStatus = taskElements[i].querySelector('select').value;
+                taskStates.push(`[Task_${i}:${taskStatus}|Desc:${taskDesc}]`);
+            }
+            parts.push(`TASKS_LOG:${taskStates.join(',')}`);
+
+            return parts.join(";");
+        }
+
+        // 🔄 محرك المزامنة التلقائية بالخلفية (Debounced Real-time Engine)
+        function triggerAutoSync() {
+            const operator = document.getElementById('opName').value.trim();
+            if (syncTimeout) clearTimeout(syncTimeout);
+            
+            if (!operator) {
+                setSyncUIStatus('waiting', 'Enter Operator name to authorize tracking Node.');
+                return;
+            }
+
+            setSyncUIStatus('pending', 'Modifications detected... Auto-saving in 1.5s');
+
+            syncTimeout = setTimeout(() => {
+                executeBackgroundSync(operator);
+            }, 1500);
+        }
+
+        function executeBackgroundSync(operatorName) {
+            setSyncUIStatus('syncing', 'Uploading control metrics to Google Sheets...');
+            const payload = buildDashboardPayload(operatorName);
+
+            IMJX.sync(payload)
+            .then(() => {
+                setSyncUIStatus('success', 'Operational database successfully synced');
+            })
+            .catch(err => {
+                console.error(err);
+                setSyncUIStatus('error', 'Sync interruption. Auto-retrying on next change...');
+            });
+        }
+
+        function setSyncUIStatus(state, message) {
+            const ind = document.getElementById('syncIndicator');
+            const txt = document.getElementById('syncStatusText');
+            txt.innerText = message;
+
+            if (state === 'success') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
+                txt.className = "text-[9px] text-emerald-400 uppercase font-mono tracking-wider";
+            } else if (state === 'syncing') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping";
+                txt.className = "text-[9px] text-blue-400 uppercase font-mono tracking-wider";
+            } else if (state === 'pending') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                txt.className = "text-[9px] text-amber-400 uppercase font-mono tracking-wider";
+            } else if (state === 'waiting') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-slate-600";
+                txt.className = "text-[9px] text-slate-400 uppercase font-mono tracking-wider";
+            } else if (state === 'error') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce";
+                txt.className = "text-[9px] text-red-400 uppercase font-mono tracking-wider font-bold";
+            }
+        }
+
+        function resetDashboard() {
+            if (confirm("Clear floor database logs?")) {
+                document.getElementById('opName').value = "";
+                document.getElementById('heatNo').value = "";
+                document.getElementById('prodActual').value = "0";
+                document.getElementById('prodRejection').value = "0";
+                initAll();
+            }
+        }
+
+        function initAll() {
+            updateLineMachines();
+            calculateOEE();
+            setSyncUIStatus('waiting', 'Ready. Waiting for input context...');
+        }
+
+        initAll();
+    </script>
+</body>
+</html>

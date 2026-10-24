@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>IM JX - Console Développeur</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html,body{overscroll-behavior-y:contain;}
+  .pulse-dot{animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-thumb{background:#334155;border-radius:4px;}
+  .flow-line{stroke:#334155;stroke-width:1.5;fill:none;}
+  .flow-node{fill:#0f172a;stroke:#334155;stroke-width:1;}
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans p-3 md:p-5">
+
+<div class="max-w-7xl mx-auto space-y-4">
+  <!-- Header -->
+  <div class="bg-slate-900 rounded-xl border border-slate-700 p-4 flex justify-between items-center">
+    <div>
+      <h1 class="text-xl font-bold text-blue-400 tracking-wider flex items-center gap-2">
+        🛠️ IM JX — Console Développeur
+        <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+      </h1>
+      <p class="text-[10px] text-slate-400 uppercase font-mono">Flux de données · Registre des alarmes · Supervision système temps réel</p>
+    </div>
+    <div class="text-right">
+      <a href="/admin.html" class="text-[10px] font-mono text-blue-400 hover:underline">← Retour Admin</a>
+      <div class="text-[10px] font-mono text-slate-400" id="clock">--:--:--</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-2 text-xs font-bold">
+    <button id="tabBtnStatus" onclick="showDevTab('tabStatus')" class="px-4 py-2 rounded-t-lg bg-slate-900 text-blue-400 border-b-2 border-blue-500">📡 Supervision temps réel</button>
+    <button id="tabBtnFlow" onclick="showDevTab('tabFlow')" class="px-4 py-2 rounded-t-lg bg-slate-900 text-slate-400 border-b-2 border-transparent">🗺️ Flux de données</button>
+    <button id="tabBtnAlarms" onclick="showDevTab('tabAlarms')" class="px-4 py-2 rounded-t-lg bg-slate-900 text-slate-400 border-b-2 border-transparent">🚨 Registre des alarmes</button>
+  </div>
+
+  <!-- ================= TAB C : SUPERVISION TEMPS RÉEL ================= -->
+  <div id="tabStatus" class="space-y-4">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+        <p class="text-[10px] text-slate-400 uppercase">État général</p>
+        <p class="text-2xl font-bold" id="kpiHealthStatus">—</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+        <p class="text-[10px] text-slate-400 uppercase">Base de données</p>
+        <p class="text-lg font-bold font-mono" id="kpiDbStatus">—</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+        <p class="text-[10px] text-slate-400 uppercase">Espace disque libre</p>
+        <p class="text-2xl font-bold text-blue-400" id="kpiDisk">—</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+        <p class="text-[10px] text-slate-400 uppercase">Connexions WS actives</p>
+        <p class="text-2xl font-bold text-emerald-400" id="kpiWsTotal">—</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+        <p class="text-[10px] text-slate-400 uppercase">Alarmes critiques ouvertes</p>
+        <p class="text-2xl font-bold text-amber-400" id="kpiCritOpen">—</p>
+      </div>
+      <div class="bg-slate-900 border border-red-800 rounded-xl p-3">
+        <p class="text-[10px] text-red-400 uppercase">Alarmes escaladées</p>
+        <p class="text-2xl font-bold text-red-400" id="kpiCritEsc">—</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+        <p class="text-[10px] text-slate-400 uppercase">Disponibilité</p>
+        <p class="text-lg font-bold font-mono text-slate-200" id="kpiUptime">—</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+        <p class="text-[10px] text-slate-400 uppercase">Dernière actualisation</p>
+        <p class="text-lg font-bold font-mono text-slate-200" id="kpiRefreshed">—</p>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+        <div class="p-3 border-b border-slate-700"><h2 class="text-xs font-bold text-blue-400 uppercase">Connexions WebSocket par département</h2></div>
+        <div class="p-3" id="wsByDept">—</div>
+      </div>
+      <div class="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+        <div class="p-3 border-b border-slate-700"><h2 class="text-xs font-bold text-blue-400 uppercase">Dernière synchronisation reçue par département</h2></div>
+        <div class="p-3" id="lastSyncByDept">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB A : FLUX DE DONNÉES ================= -->
+  <div id="tabFlow" class="space-y-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-xl p-4">
+      <h2 class="text-xs font-bold text-blue-400 uppercase mb-3">Pages métier → endpoints appelés</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs font-mono">
+          <thead><tr class="text-left text-slate-400 uppercase text-[10px] border-b border-slate-700">
+            <th class="p-1.5">Page</th><th class="p-1.5">Envoie vers</th>
+          </tr></thead>
+          <tbody id="pageFlowBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-700 rounded-xl p-4">
+      <h2 class="text-xs font-bold text-emerald-400 uppercase mb-3">Événements WebSocket émis par le serveur</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs font-mono">
+          <thead><tr class="text-left text-slate-400 uppercase text-[10px] border-b border-slate-700">
+            <th class="p-1.5">type</th><th class="p-1.5">Émis par</th><th class="p-1.5">Reçu par</th>
+          </tr></thead>
+          <tbody id="wsEventsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-700 rounded-xl p-4">
+      <h2 class="text-xs font-bold text-amber-400 uppercase mb-3">Toutes les routes HTTP enregistrées (générées dynamiquement)</h2>
+      <div class="overflow-x-auto max-h-96 overflow-y-auto">
+        <table class="w-full text-xs font-mono">
+          <thead class="sticky top-0 bg-slate-900"><tr class="text-left text-slate-400 uppercase text-[10px] border-b border-slate-700">
+            <th class="p-1.5">Méthode(s)</th><th class="p-1.5">Chemin</th>
+          </tr></thead>
+          <tbody id="routesBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB B : REGISTRE DES ALARMES ================= -->
+  <div id="tabAlarms" class="space-y-3 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-xl p-4">
+      <p class="text-[10px] text-slate-400 mb-3">Liste exhaustive de toutes les alarmes que le système peut produire — alarmes machine ET alarmes système — avec la condition de déclenchement, l'action automatique prise, et l'état réel actuel.</p>
+      <div id="alarmsCatalogList" class="space-y-2"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/shared/im-jx-client.js"></script>
+<script>
+window.IMJX_PAGE = { roles: ["admin"], page: "DEV_CONSOLE" };
+let session;
+
+function showDevTab(id) {
+  ["tabStatus", "tabFlow", "tabAlarms"].forEach(t => document.getElementById(t).classList.toggle("hidden", t !== id));
+  ["tabBtnStatus", "tabBtnFlow", "tabBtnAlarms"].forEach(b => {
+    const btn = document.getElementById(b);
+    const active = b === "tabBtn" + id.replace("tab", "");
+    btn.classList.toggle("text-blue-400", active);
+    btn.classList.toggle("border-blue-500", active);
+    btn.classList.toggle("text-slate-400", !active);
+    btn.classList.toggle("border-transparent", !active);
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str == null ? "" : String(str);
+  return div.innerHTML;
+}
+
+function fmtTimestamp(iso) {
+  if (!iso) return '<span class="text-slate-600">jamais</span>';
+  const d = new Date(iso);
+  const ageMin = Math.round((Date.now() - d.getTime()) / 60000);
+  const cls = ageMin > 30 ? "text-amber-400" : "text-slate-300";
+  return `<span class="${cls}">${d.toLocaleString("fr-FR")} (il y a ${ageMin} min)</span>`;
+}
+
+async function loadStatus() {
+  try {
+    const res = await fetch("/api/system/status", { headers: IMJX.authHeaders(session) });
+    if (!res.ok) throw new Error("status " + res.status);
+    const data = await res.json();
+
+    const st = data.health.status;
+    const stEl = document.getElementById("kpiHealthStatus");
+    stEl.textContent = st === "ok" ? "✅ OK" : st === "degraded" ? "⚠️ Dégradé" : "🔴 En panne";
+    stEl.className = "text-2xl font-bold " + (st === "ok" ? "text-emerald-400" : st === "degraded" ? "text-amber-400" : "text-red-400");
+    document.getElementById("statusDot").className = "w-2.5 h-2.5 rounded-full " + (st === "ok" ? "bg-emerald-500 pulse-dot" : st === "degraded" ? "bg-amber-500 pulse-dot" : "bg-red-500 pulse-dot");
+
+    const dbOk = data.health.checks.database === "ok";
+    document.getElementById("kpiDbStatus").innerHTML = dbOk
+      ? '<span class="text-emerald-400">✅ Connectée</span>'
+      : `<span class="text-red-400">🔴 ${escapeHtml(data.health.checks.database)}</span>`;
+
+    const diskPct = data.health.checks.disk_free_pct;
+    const diskEl = document.getElementById("kpiDisk");
+    diskEl.textContent = diskPct != null ? diskPct + "%" : "—";
+    diskEl.className = "text-2xl font-bold " + (diskPct != null && diskPct < 10 ? "text-red-400" : "text-blue-400");
+
+    document.getElementById("kpiWsTotal").textContent = data.health.checks.websocket_connections;
+    document.getElementById("kpiCritOpen").textContent = data.critical_alarms_open;
+    document.getElementById("kpiCritEsc").textContent = data.critical_alarms_escalated;
+
+    const uptimeS = data.health.checks.uptime_seconds || 0;
+    const h = Math.floor(uptimeS / 3600), m = Math.floor((uptimeS % 3600) / 60);
+    document.getElementById("kpiUptime").textContent = `${h}h ${m}min`;
+    document.getElementById("kpiRefreshed").textContent = new Date().toLocaleTimeString("fr-FR");
+
+    const wsByDept = data.websocket_connections_by_department || {};
+    const wsEntries = Object.entries(wsByDept);
+    document.getElementById("wsByDept").innerHTML = wsEntries.length
+      ? wsEntries.map(([dep, n]) => `<div class="flex justify-between text-xs font-mono py-1 border-b border-slate-800"><span class="text-slate-400">${escapeHtml(dep)}</span><span class="text-emerald-400 font-bold">${n}</span></div>`).join("")
+      : '<p class="text-xs text-slate-500">Aucune connexion active</p>';
+
+    const lastSync = data.last_sync_by_department || {};
+    document.getElementById("lastSyncByDept").innerHTML = Object.entries(lastSync)
+      .map(([dep, ts]) => `<div class="flex justify-between text-xs font-mono py-1 border-b border-slate-800"><span class="text-slate-400">${escapeHtml(dep)}</span>${fmtTimestamp(ts)}</div>`).join("");
+  } catch (e) {
+    document.getElementById("kpiHealthStatus").innerHTML = '<span class="text-red-400">🔴 injoignable</span>';
+  }
+}
+
+async function loadDataFlow() {
+  const res = await fetch("/api/system/data-flow", { headers: IMJX.authHeaders(session) });
+  const data = await res.json();
+
+  document.getElementById("pageFlowBody").innerHTML = data.page_flows.map(f => `
+    <tr class="border-b border-slate-800">
+      <td class="p-1.5 text-blue-300">${escapeHtml(f.page)}</td>
+      <td class="p-1.5 text-slate-300">${f.sends_to.map(escapeHtml).join(", ")}</td>
+    </tr>`).join("");
+
+  document.getElementById("wsEventsBody").innerHTML = data.websocket_events.map(e => `
+    <tr class="border-b border-slate-800">
+      <td class="p-1.5 text-emerald-300">${escapeHtml(e.type)}</td>
+      <td class="p-1.5 text-slate-300">${escapeHtml(e.emitted_by)}</td>
+      <td class="p-1.5 text-slate-400">${escapeHtml(e.received_by)}</td>
+    </tr>`).join("");
+
+  document.getElementById("routesBody").innerHTML = data.http_routes.map(r => `
+    <tr class="border-b border-slate-800">
+      <td class="p-1.5 text-amber-300">${r.methods.map(escapeHtml).join("/")}</td>
+      <td class="p-1.5 text-slate-300">${escapeHtml(r.path)}</td>
+    </tr>`).join("");
+}
+
+async function loadAlarmsCatalog() {
+  const res = await fetch("/api/system/alarms-catalog", { headers: IMJX.authHeaders(session) });
+  const data = await res.json();
+  const gravityColor = { "critical": "border-red-600 text-red-400", "warning": "border-amber-600 text-amber-400", "info": "border-blue-600 text-blue-400" };
+
+  document.getElementById("alarmsCatalogList").innerHTML = data.catalog.map(item => {
+    const firstGravity = String(item["gravité"]).split(" ")[0].replace("|", "").trim();
+    const colorCls = gravityColor[firstGravity] || "border-slate-600 text-slate-400";
+    return `
+    <div class="border ${colorCls} border-opacity-40 rounded-lg p-3 bg-slate-950/40">
+      <div class="flex justify-between items-start gap-2 mb-1">
+        <h3 class="font-bold text-sm">${escapeHtml(item.category)}</h3>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded border ${colorCls}">${escapeHtml(item["gravité"])}</span>
+      </div>
+      <p class="text-xs text-slate-400 mb-1"><span class="text-slate-500">Condition :</span> ${escapeHtml(item.condition)}</p>
+      <p class="text-xs text-slate-400 mb-1"><span class="text-slate-500">Action automatique :</span> ${escapeHtml(item.action_automatique)}</p>
+      <p class="text-xs font-mono text-slate-200"><span class="text-slate-500">État actuel :</span> ${escapeHtml(item["état_actuel"])}</p>
+    </div>`;
+  }).join("");
+}
+
+function tickClock() {
+  document.getElementById("clock").textContent = new Date().toLocaleTimeString("fr-FR");
+}
+
+(async function init() {
+  session = IMJX.requireAuth({ roles: ["admin"] });
+  if (!session) return;
+  tickClock();
+  setInterval(tickClock, 1000);
+  await Promise.all([loadStatus(), loadDataFlow(), loadAlarmsCatalog()]);
+  setInterval(loadStatus, 10000); // rafraîchissement temps réel toutes les 10s
+})();
+</script>
+</body>
+</html>

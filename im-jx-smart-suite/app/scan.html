@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - Scanner Machine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/shared/vendor/html5-qrcode.min.js"></script>
+    <style>html,body{overscroll-behavior-y:contain;}</style>
+    <script>window.IMJX_PAGE = { page: "SCAN" };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans">
+
+    <div class="max-w-lg mx-auto space-y-4 mb-16">
+        <div class="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden">
+            <div class="bg-slate-950 p-4 border-b-2 border-blue-500">
+                <h1 class="text-lg font-bold text-blue-400 tracking-wider">📷 Scanner une Machine</h1>
+                <p class="text-[10px] text-slate-500 uppercase font-mono">QR Code · Code 128 · Code 39</p>
+            </div>
+
+            <div class="p-3 space-y-3">
+                <div id="qr-reader" style="width:100%;border-radius:8px;overflow:hidden;"></div>
+                <button id="btnToggleCam" onclick="toggleCamera()" class="w-full bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 font-bold py-2 rounded text-xs uppercase border border-blue-500/30">Démarrer la caméra</button>
+
+                <div class="border-t border-slate-700 pt-3">
+                    <label class="block text-[10px] text-slate-400 uppercase mb-1">Ou entrer / scanner le code manuellement (douchette USB compatible) :</label>
+                    <div class="flex gap-2">
+                        <input id="manualCode" placeholder="Ex: M035" autofocus class="flex-1 p-2 bg-slate-900 border border-slate-700 rounded text-white font-mono uppercase outline-none">
+                        <button onclick="goToManualCode()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 rounded text-xs uppercase">Ouvrir</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let session, html5QrCode, camActive = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            session = window.IMJX.getSession();
+            if (!session) return;
+            document.getElementById('manualCode').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') goToManualCode();
+            });
+        });
+
+        function goToMachine(code) {
+            const clean = (code || "").trim().toUpperCase();
+            if (!clean) return;
+            window.location.href = `/machine.html?code=${encodeURIComponent(clean)}`;
+        }
+
+        function goToManualCode() {
+            goToMachine(document.getElementById('manualCode').value);
+        }
+
+        function onScanSuccess(decodedText) {
+            // Le QR peut contenir soit un code brut (ex: M035), soit un lien complet
+            // (ex: https://.../machine.html?code=M035) -> on extrait le code dans les 2 cas.
+            let code = decodedText;
+            try {
+                const url = new URL(decodedText);
+                code = url.searchParams.get("code") || decodedText;
+            } catch (e) { /* pas une URL, on garde le texte brut */ }
+            stopCamera();
+            goToMachine(code);
+        }
+
+        function toggleCamera() {
+            if (camActive) stopCamera();
+            else startCamera();
+        }
+
+        function startCamera() {
+            html5QrCode = new Html5Qrcode("qr-reader");
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 240, height: 240 } },
+                onScanSuccess,
+                () => {}
+            ).then(() => {
+                camActive = true;
+                document.getElementById('btnToggleCam').innerText = "Arrêter la caméra";
+            }).catch(() => {
+                alert("⚠️ ماقدرش نفتح الكاميرا. تأكد من الصلاحيات، ولا استعمل الإدخال اليدوي تحت.");
+            });
+        }
+
+        function stopCamera() {
+            if (html5QrCode && camActive) {
+                html5QrCode.stop().then(() => {
+                    camActive = false;
+                    document.getElementById('btnToggleCam').innerText = "Démarrer la caméra";
+                }).catch(() => {});
+            }
+        }
+    </script>
+</body>
+</html>

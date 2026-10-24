@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - Team Leader Command Node</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>html,body{overscroll-behavior-y:contain;}</style>
+    <script>window.IMJX_PAGE = { department: "PROD", page: "TL", roles: ["tl"] };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans select-none">
+
+    <div class="max-w-6xl mx-auto bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden mb-12">
+        
+        <!-- الهيدر الرئيسي لواجهة المسؤول -->
+        <div class="bg-slate-950 p-4 flex justify-between items-center border-b-2 border-amber-500">
+            <div>
+                <h1 class="text-lg font-bold text-amber-400 tracking-wider flex items-center gap-2">
+                    <span>IM JX - Team Leader Control Node</span>
+                    <span id="syncIndicator" class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System Live"></span>
+                </h1>
+                <p id="syncStatusText" class="text-[9px] text-emerald-400 uppercase font-mono tracking-widest">Master Cloud Sync: Connected</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <input type="date" id="repDate" onchange="triggerAutoSync()" class="bg-slate-800 text-xs p-1 rounded border border-slate-600 text-white font-mono outline-none">
+                <span id="liveClock" class="text-[10px] font-mono text-slate-400">00:00:00</span>
+            </div>
+        </div>
+
+        <!-- سياق المسؤول والشفت -->
+        <div class="p-4 bg-slate-900/40 border-b border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Team Leader Name:</label>
+                <input type="text" id="tlName" placeholder="Enter Leader Name" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-amber-400 font-bold outline-none">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Active Shift:</label>
+                <select id="tlShift" onchange="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                    <option value="A">Shift A</option>
+                    <option value="B">Shift B</option>
+                    <option value="C">Shift C</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shift Pattern Mode:</label>
+                <select id="shiftPattern" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-yellow-400 font-bold outline-none">
+                    <option value="8H">Standard 8 Hours</option>
+                    <option value="12H">Extended 12 Hours</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="p-3 md:p-4 space-y-6">
+
+            <!-- 1. مراقبة الخطوط كاملة (Mora9aba Kamla l-Shift) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-3">
+                <h2 class="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1">📊 Full Shift Lines Monitoring</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border border-slate-700 min-w-[600px]">
+                        <thead class="bg-slate-950 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-700">
+                            <tr>
+                                <th class="p-2 border-r border-slate-700 w-24">Line No</th>
+                                <th class="p-2 border-r border-slate-700 w-32">Target (Pcs)</th>
+                                <th class="p-2 border-r border-slate-700 w-32">Actual OK (Pcs)</th>
+                                <th class="p-2 border-r border-slate-700 w-32">Rejection (Pcs)</th>
+                                <th class="p-2 border-r border-slate-700 w-24">Performance</th>
+                                <th class="p-2">Line Status / Major Loss</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700 bg-slate-900/20">
+                            <!-- Line 1 -->
+                            <tr class="hover:bg-slate-900/40 transition-colors">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-300">Line 1</td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l1_tgt" value="1200" oninput="calcLinePerf(1); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono rounded border border-slate-800 outline-none"></td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l1_act" value="0" oninput="calcLinePerf(1); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono font-bold text-emerald-400 rounded border border-slate-800 outline-none"></td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l1_rej" value="0" oninput="calcLinePerf(1); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono font-bold text-red-400 rounded border border-slate-800 outline-none"></td>
+                                <td class="p-2 border-r border-slate-800 text-center font-bold text-blue-400 font-mono" id="l1_perf">0%</td>
+                                <td class="p-1">
+                                    <input type="text" id="l1_status" placeholder="Running / Mechanical Breakdown..." oninput="triggerAutoSync()" class="w-full bg-transparent p-1 font-mono text-slate-300 text-xs outline-none">
+                                </td>
+                            </tr>
+                            <!-- Line 2 -->
+                            <tr class="hover:bg-slate-900/40 transition-colors">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-300">Line 2</td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l2_tgt" value="1200" oninput="calcLinePerf(2); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono rounded border border-slate-800 outline-none"></td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l2_act" value="0" oninput="calcLinePerf(2); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono font-bold text-emerald-400 rounded border border-slate-800 outline-none"></td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l2_rej" value="0" oninput="calcLinePerf(2); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono font-bold text-red-400 rounded border border-slate-800 outline-none"></td>
+                                <td class="p-2 border-r border-slate-800 text-center font-bold text-blue-400 font-mono" id="l2_perf">0%</td>
+                                <td class="p-1">
+                                    <input type="text" id="l2_status" placeholder="Running / Changeover..." oninput="triggerAutoSync()" class="w-full bg-transparent p-1 font-mono text-slate-300 text-xs outline-none">
+                                </td>
+                            </tr>
+                            <!-- Line 3 -->
+                            <tr class="hover:bg-slate-900/40 transition-colors">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-300">Line 3</td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l3_tgt" value="1200" oninput="calcLinePerf(3); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono rounded border border-slate-800 outline-none"></td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l3_act" value="0" oninput="calcLinePerf(3); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono font-bold text-emerald-400 rounded border border-slate-800 outline-none"></td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l3_rej" value="0" oninput="calcLinePerf(3); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono font-bold text-red-400 rounded border border-slate-800 outline-none"></td>
+                                <td class="p-2 border-r border-slate-800 text-center font-bold text-blue-400 font-mono" id="l3_perf">0%</td>
+                                <td class="p-1">
+                                    <input type="text" id="l3_status" placeholder="Setup / Tool Change..." oninput="triggerAutoSync()" class="w-full bg-transparent p-1 font-mono text-slate-300 text-xs outline-none">
+                                </td>
+                            </tr>
+                            <!-- Line 4 -->
+                            <tr class="hover:bg-slate-900/40 transition-colors">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-300">Line 4</td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l4_tgt" value="1200" oninput="calcLinePerf(4); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono rounded border border-slate-800 outline-none"></td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l4_act" value="0" oninput="calcLinePerf(4); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono font-bold text-emerald-400 rounded border border-slate-800 outline-none"></td>
+                                <td class="p-1 border-r border-slate-800"><input type="number" id="l4_rej" value="0" oninput="calcLinePerf(4); triggerAutoSync();" class="w-full bg-slate-950/60 p-1 text-center font-mono font-bold text-red-400 rounded border border-slate-800 outline-none"></td>
+                                <td class="p-2 border-r border-slate-800 text-center font-bold text-blue-400 font-mono" id="l4_perf">0%</td>
+                                <td class="p-1">
+                                    <input type="text" id="l4_status" placeholder="Running / Material Shortage..." oninput="triggerAutoSync()" class="w-full bg-transparent p-1 font-mono text-slate-300 text-xs outline-none">
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 2. محرك إرسال المهام للمشغلين والتقنيين (Send Tasks to Ops / Techs) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-4">
+                <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">📋 Dispatch Action Items (Operators & Technicians)</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Line:</label>
+                        <select id="taskLine" class="w-full p-2 bg-slate-850 border border-slate-600 rounded text-white font-bold outline-none">
+                            <option value="LINE_1">Line 1</option>
+                            <option value="LINE_2">Line 2</option>
+                            <option value="LINE_3">Line 3</option>
+                            <option value="LINE_4">Line 4</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Crew:</label>
+                        <select id="taskCrew" class="w-full p-2 bg-slate-850 border border-slate-600 rounded text-amber-400 font-bold outline-none">
+                            <option value="OPERATORS">Production Operators Team</option>
+                            <option value="TECHNICIENS">Maintenance Technicians Crew</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Task Priority:</label>
+                        <select id="taskPriority" class="w-full p-2 bg-slate-850 border border-slate-600 rounded text-red-400 font-bold outline-none">
+                            <option value="URGENT">⚠️ Critical / Immediate</option>
+                            <option value="STANDARD">⚙️ Standard Operation</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Task Instruction Details:</label>
+                    <textarea id="taskText" rows="2" placeholder="Describe the task for operators or technicians..." class="w-full p-2 bg-slate-950 border border-slate-700 rounded text-slate-100 font-mono text-xs outline-none resize-none placeholder-slate-700"></textarea>
+                </div>
+
+                <button type="button" onclick="dispatchInstantTask()" id="btnDispatch" class="w-full bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 font-bold py-2 rounded text-xs uppercase border border-amber-500/40 tracking-wider transition-all">
+                    Broadcast Active Task 📢
+                </button>
+            </div>
+
+            <!-- 3. بوابة التواصل والإنذار مع الإدارة (Communication with Administration) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-1">
+                    <h2 class="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">🚨 Administration Communications Matrix</h2>
+                    <span class="text-[9px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">Direct Office Link</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Request Category:</label>
+                        <select id="adminCategory" class="w-full p-2 bg-slate-850 border border-slate-600 rounded text-white font-bold outline-none">
+                            <option value="RAW_MATERIAL_LACK">Raw Material Shortage Escalation</option>
+                            <option value="HR_ABSENCE">Critical Operator Absence / Backup Request</option>
+                            <option value="SAFETY_INCIDENT">Safety / HSE Incident Report</option>
+                            <option value="LOGISTICS_BLOCK">Logistics / Outfeed Buffer Full</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Impact Level:</label>
+                        <select id="adminImpact" class="w-full p-2 bg-slate-850 border border-slate-600 rounded text-red-400 font-bold outline-none">
+                            <option value="LINE_STOP">🛑 Line Stopping / Active Downtime</option>
+                            <option value="RISK_AHEAD">⚠️ High Risk / Potential Stop</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Report Description for Management:</label>
+                    <textarea id="adminText" rows="2" placeholder="Write specific logistics or management notes here..." class="w-full p-2 bg-slate-950 border border-slate-700 rounded text-slate-100 font-mono text-xs outline-none resize-none placeholder-slate-700"></textarea>
+                </div>
+
+                <button type="button" onclick="sendAdminNotification()" id="btnAdmin" class="w-full bg-red-600/20 hover:bg-red-600/30 text-red-400 font-bold py-2 rounded text-xs uppercase border border-red-500/40 tracking-wider transition-all">
+                    Transmit Emergency Admin Alert 📤
+                </button>
+            </div>
+
+            <!-- زر التصفير ومسح اللوحة -->
+            <div class="pt-2">
+                <button type="button" onclick="resetLeaderNode()" class="w-full bg-red-600/10 hover:bg-red-600/20 text-red-400 py-2 rounded-lg text-xs uppercase border border-red-500/20 transition-all font-mono">Reset Command Node</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center text-[10px] text-slate-500 font-mono pb-8 uppercase tracking-widest">
+        IM JX Master Node v7.5 &bull; Jexas Command Suite
+    </div>
+
+    <script>
+        let syncTimeout = null;
+        // googleScriptUrl remplacé par le backend IM JX (voir shared/im-jx-client.js)
+
+        // إعداد الوقت والتاريخ
+        document.getElementById('repDate').value = new Date().toISOString().split('T')[0];
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        // حساب الأداء فوري لكل خط
+        function calcLinePerf(lineId) {
+            const tgt = parseFloat(document.getElementById(`l${lineId}_tgt`).value) || 0;
+            const act = parseFloat(document.getElementById(`l${lineId}_act`).value) || 0;
+            const perfCell = document.getElementById(`l${lineId}_perf`);
+            
+            if (tgt > 0) {
+                const percentage = (act / tgt) * 100;
+                perfCell.innerText = `${percentage.toFixed(0)}%`;
+                if(percentage >= 85) perfCell.className = "p-2 border-r border-slate-800 text-center font-bold text-emerald-400 font-mono";
+                else if(percentage >= 60) perfCell.className = "p-2 border-r border-slate-800 text-center font-bold text-yellow-400 font-mono";
+                else perfCell.className = "p-2 border-r border-slate-800 text-center font-bold text-red-400 font-mono";
+            } else {
+                perfCell.innerText = "0%";
+                perfCell.className = "p-2 border-r border-slate-800 text-center font-bold text-blue-400 font-mono";
+            }
+        }
+
+        // 📦 تجميع تقرير المراقبة العام للشفت (Dashboard Payload)
+        function buildTLPayload(leaderName) {
+            let parts = [];
+            parts.push("IM_LEADER_NODE");
+            parts.push(document.getElementById('repDate').value);
+            parts.push(leaderName);
+            parts.push(`SHIFT_${document.getElementById('tlShift').value}`);
+            parts.push(`MODE_${document.getElementById('shiftPattern').value}`);
+
+            // تجميع بيانات الخطوط بـ 4
+            let lineLogs = [];
+            for(let i = 1; i <= 4; i++) {
+                const tgt = document.getElementById(`l${i}_tgt`).value || "0";
+                const act = document.getElementById(`l${i}_act`).value || "0";
+                const rej = document.getElementById(`l${i}_rej`).value || "0";
+                const status = document.getElementById(`l${i}_status`).value.trim() || "NoLog";
+                lineLogs.push(`[L${i}|Tgt:${tgt}|Act:${act}|Rej:${rej}|Status:${status}]`);
+            }
+            parts.push(`LINES_STATUS:${lineLogs.join(',')}`);
+
+            return parts.join(";");
+        }
+
+        // 🔄 محرك المزامنة التلقائية لمراقبة الشفت
+        function triggerAutoSync() {
+            const leader = document.getElementById('tlName').value.trim();
+            if (syncTimeout) clearTimeout(syncTimeout);
+            
+            if (!leader) {
+                setSyncUIStatus('waiting', 'Enter Team Leader name to establish server connection.');
+                return;
+            }
+
+            setSyncUIStatus('pending', 'Data logs modified... Sync pending');
+
+            syncTimeout = setTimeout(() => {
+                executeBackgroundSync(leader);
+            }, 1500);
+        }
+
+        function executeBackgroundSync(leaderName) {
+            setSyncUIStatus('syncing', 'Syncing lines matrix data...');
+            const payload = buildTLPayload(leaderName);
+
+            IMJX.sync(payload)
+            .then(() => {
+                setSyncUIStatus('success', 'Full shift database updated');
+            })
+            .catch(err => {
+                console.error(err);
+                setSyncUIStatus('error', 'Sync lost. Re-trying on next update...');
+            });
+        }
+
+        // 📢 إرسال مهمة فورية (للمشغلين أو التقنيين)
+        function dispatchInstantTask() {
+            const leader = document.getElementById('tlName').value.trim();
+            if(!leader) { alert("⚠️ أدخل اسم الـ Team Leader أولاً!"); return; }
+
+            const line = document.getElementById('taskLine').value;
+            const crew = document.getElementById('taskCrew').value;
+            const priority = document.getElementById('taskPriority').value;
+            const text = document.getElementById('taskText').value.trim() || "No instruction details.";
+            const timestamp = new Date().toTimeString().split(' ')[0].substring(0,5);
+
+            const taskPayload = `IM_LEADER_TASK;${document.getElementById('repDate').value};${timestamp};${leader};${line};${crew};${priority};${text}`;
+
+            const btn = document.getElementById('btnDispatch');
+            btn.innerText = "Broadcasting... ⏳";
+            btn.disabled = true;
+
+            IMJX.sync(taskPayload)
+            .then(() => {
+                alert(`✅ تم بث المهمة بنجاح إلى فريق: ${crew}`);
+                document.getElementById('taskText').value = "";
+                btn.innerText = "Broadcast Active Task 📢";
+                btn.disabled = false;
+            })
+            .catch(err => {
+                console.error(err);
+                alert("❌ فشل إرسال المهمة.");
+                btn.innerText = "Broadcast Active Task 📢";
+                btn.disabled = false;
+            });
+        }
+
+        // 📤 إرسال بلاغ مستعجل للإدارة (Administration)
+        function sendAdminNotification() {
+            const leader = document.getElementById('tlName').value.trim();
+            if(!leader) { alert("⚠️ أدخل اسم الـ Team Leader أولاً لرط البلاغ!"); return; }
+
+            const category = document.getElementById('adminCategory').value;
+            const impact = document.getElementById('adminImpact').value;
+            const text = document.getElementById('adminText').value.trim() || "No detailed logs.";
+            const timestamp = new Date().toTimeString().split(' ')[0].substring(0,5);
+
+            const adminPayload = `IM_LEADER_ADMIN;${document.getElementById('repDate').value};${timestamp};${leader};${category};${impact};${text}`;
+
+            const btn = document.getElementById('btnAdmin');
+            btn.innerText = "Transmitting to Office... ⏳";
+            btn.disabled = true;
+
+            IMJX.sync(adminPayload)
+            .then(() => {
+                alert(`🚨 تم تصعيد البلاغ للإدارة بنظام الأولوية: ${impact}`);
+                document.getElementById('adminText').value = "";
+                btn.innerText = "Transmit Emergency Admin Alert 📤";
+                btn.disabled = false;
+            })
+            .catch(err => {
+                console.error(err);
+                alert("❌ فشل الاتصال بخادم الإدارة.");
+                btn.innerText = "Transmit Emergency Admin Alert 📤";
+                btn.disabled = false;
+            });
+        }
+
+        function setSyncUIStatus(state, message) {
+            const ind = document.getElementById('syncIndicator');
+            const txt = document.getElementById('syncStatusText');
+            txt.innerText = message;
+
+            if (state === 'success') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
+                txt.className = "text-[9px] text-emerald-400 uppercase font-mono tracking-wider";
+            } else if (state === 'syncing') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping";
+                txt.className = "text-[9px] text-blue-400 uppercase font-mono tracking-wider";
+            } else if (state === 'pending') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                txt.className = "text-[9px] text-amber-400 uppercase font-mono tracking-wider";
+            } else if (state === 'waiting') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-slate-600";
+                txt.className = "text-[9px] text-slate-400 uppercase font-mono tracking-wider";
+            } else if (state === 'error') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce";
+                txt.className = "text-[9px] text-red-400 uppercase font-mono tracking-wider font-bold";
+            }
+        }
+
+        function resetLeaderNode() {
+            if (confirm("Reset current shift overview matrix?")) {
+                document.getElementById('tlName').value = "";
+                for(let i=1; i<=4; i++) {
+                    document.getElementById(`l${i}_act`).value = "0";
+                    document.getElementById(`l${i}_rej`).value = "0";
+                    document.getElementById(`l${i}_status`).value = "";
+                    calcLinePerf(i);
+                }
+                setSyncUIStatus('waiting', 'System database refreshed.');
+            }
+        }
+
+        setSyncUIStatus('waiting', 'Ready. Authenticate Team Leader to establish link.');
+    </script>
+</body>
+</html>

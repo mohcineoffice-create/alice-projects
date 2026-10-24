@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - Fiche Machine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>html,body{overscroll-behavior-y:contain;}</style>
+    <script>window.IMJX_PAGE = { page: "MACHINE" };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans">
+
+    <div class="max-w-3xl mx-auto space-y-4 mb-16">
+
+        <div class="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden">
+            <div class="bg-slate-950 p-4 flex justify-between items-center border-b-2 border-blue-500">
+                <h1 class="text-lg font-bold text-blue-400 tracking-wider">🏭 Fiche Machine</h1>
+                <a href="/scan.html" class="text-[10px] text-slate-400 hover:text-white uppercase font-mono border border-slate-600 rounded px-2 py-1">📷 Scanner une autre machine</a>
+            </div>
+
+            <div id="notFoundBox" class="hidden p-6 text-center text-red-400 text-sm">
+                ❌ Machine introuvable. Vérifiez le code scanné.
+            </div>
+
+            <div id="machineBox" class="hidden p-4 space-y-4">
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                    <div><span class="text-slate-400 block text-[10px] uppercase">Code</span><span id="mCode" class="font-bold text-cyan-400 font-mono"></span></div>
+                    <div><span class="text-slate-400 block text-[10px] uppercase">Nom</span><span id="mName" class="font-bold"></span></div>
+                    <div><span class="text-slate-400 block text-[10px] uppercase">Type</span><span id="mType"></span></div>
+                    <div><span class="text-slate-400 block text-[10px] uppercase">Département</span><span id="mDept" class="font-bold text-blue-400"></span></div>
+                    <div><span class="text-slate-400 block text-[10px] uppercase">Emplacement</span><span id="mLocation"></span></div>
+                    <div><span class="text-slate-400 block text-[10px] uppercase">N° Série</span><span id="mSerial" class="font-mono"></span></div>
+                    <div><span class="text-slate-400 block text-[10px] uppercase">Installation</span><span id="mInstallDate" class="font-mono"></span></div>
+                    <div><span class="text-slate-400 block text-[10px] uppercase">Responsable</span><span id="mResponsible"></span></div>
+                    <div><span class="text-slate-400 block text-[10px] uppercase">Statut</span><span id="mStatus" class="font-bold"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signalement rapide -->
+        <div id="alarmSection" class="hidden bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden">
+            <div class="bg-slate-950 p-3 border-b border-slate-700">
+                <h2 class="text-xs font-bold text-red-400 uppercase tracking-wider">🚨 Signaler un problème</h2>
+            </div>
+            <div class="p-3 space-y-2 text-xs">
+                <div class="grid grid-cols-3 gap-2">
+                    <button data-level="critical" onclick="quickAlarm('critical', '')" class="bg-red-600/20 hover:bg-red-600/40 text-red-400 font-bold py-3 rounded border border-red-500/30">🔴 Critique</button>
+                    <button data-level="warning" onclick="quickAlarm('warning', '')" class="bg-amber-600/20 hover:bg-amber-600/40 text-amber-400 font-bold py-3 rounded border border-amber-500/30">🟡 Avertissement</button>
+                    <button data-level="info" onclick="quickAlarm('info', '')" class="bg-slate-600/20 hover:bg-slate-600/40 text-slate-300 font-bold py-3 rounded border border-slate-500/30">ℹ️ Info</button>
+                </div>
+                <p class="text-[10px] text-slate-500">Tap rapide sans description, ou ajoutez des détails ci-dessous avant de choisir un niveau :</p>
+                <textarea id="alarmDesc" rows="2" placeholder="Description (optionnelle)..." class="w-full p-2 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono text-xs outline-none placeholder-slate-600 resize-none"></textarea>
+            </div>
+        </div>
+
+        <!-- Alarmes actives -->
+        <div class="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden">
+            <div class="bg-slate-950 p-3 border-b border-slate-700">
+                <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider">Alarmes actives</h2>
+            </div>
+            <div id="alarmsList" class="p-3 space-y-2 text-xs text-slate-400">Chargement...</div>
+        </div>
+
+        <!-- Maintenance -->
+        <div class="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden">
+            <div class="bg-slate-950 p-3 border-b border-slate-700 flex justify-between items-center">
+                <h2 class="text-xs font-bold text-cyan-400 uppercase tracking-wider">Historique Maintenance</h2>
+                <button id="btnNewMaintenance" onclick="toggleNewMaintenanceForm()" class="hidden text-[10px] bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-400 px-2 py-1 rounded border border-cyan-500/30">+ Nouvelle intervention</button>
+            </div>
+
+            <div id="newMaintenanceForm" class="hidden p-3 border-b border-slate-700 space-y-2 text-xs bg-slate-900/40">
+                <textarea id="newMaintDesc" rows="2" placeholder="Description de l'intervention..." class="w-full p-2 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono text-xs outline-none placeholder-slate-600 resize-none"></textarea>
+                <input id="newMaintTech" placeholder="Technicien assigné (optionnel)" class="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white text-xs outline-none">
+                <button onclick="createMaintenance()" class="w-full bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-400 font-bold py-2 rounded text-xs uppercase border border-cyan-500/30">Créer l'intervention</button>
+            </div>
+
+            <div id="maintList" class="p-3 space-y-2 text-xs text-slate-400">Chargement...</div>
+        </div>
+    </div>
+
+    <script>
+        let session, currentMachine = null, isMntOrAdmin = false;
+        const params = new URLSearchParams(window.location.search);
+        const machineCode = params.get('code');
+
+        document.addEventListener('DOMContentLoaded', init);
+
+        async function init() {
+            session = window.IMJX.getSession();
+            if (!session) return;
+            isMntOrAdmin = session.department === "MNT" || session.role === "admin";
+            if (isMntOrAdmin) document.getElementById('btnNewMaintenance').classList.remove('hidden');
+
+            if (!machineCode) {
+                document.getElementById('notFoundBox').classList.remove('hidden');
+                document.getElementById('notFoundBox').innerText = "⚠️ Aucun code machine fourni. Utilisez le scanner.";
+                return;
+            }
+            await loadMachine();
+        }
+
+        async function loadMachine() {
+            try {
+                const res = await fetch(`/api/machines/${encodeURIComponent(machineCode)}`, { headers: window.IMJX.authHeaders(session) });
+                if (!res.ok) { document.getElementById('notFoundBox').classList.remove('hidden'); return; }
+                currentMachine = await res.json();
+                renderMachine(currentMachine);
+                document.getElementById('machineBox').classList.remove('hidden');
+                document.getElementById('alarmSection').classList.remove('hidden');
+                loadAlarms();
+                loadMaintenance();
+            } catch (e) {
+                document.getElementById('notFoundBox').classList.remove('hidden');
+            }
+        }
+
+        function statusBadge(status) {
+            const map = { operational: ["🟢 Opérationnelle", "text-emerald-400"], maintenance: ["🟡 En maintenance", "text-amber-400"], down: ["🔴 Hors service", "text-red-400"], retired: ["⚫ Retirée", "text-slate-500"] };
+            const [label, cls] = map[status] || [status, "text-slate-400"];
+            return `<span class="${cls}">${label}</span>`;
+        }
+
+        function renderMachine(m) {
+            document.getElementById('mCode').innerText = m.machine_code;
+            document.getElementById('mName').innerText = m.name;
+            document.getElementById('mType').innerText = m.machine_type || "—";
+            document.getElementById('mDept').innerText = m.department;
+            document.getElementById('mLocation').innerText = m.location || "—";
+            document.getElementById('mSerial').innerText = m.serial_number || "—";
+            document.getElementById('mInstallDate').innerText = m.installation_date || "—";
+            document.getElementById('mResponsible').innerText = m.responsible_employee || "—";
+            document.getElementById('mStatus').innerHTML = statusBadge(m.status);
+        }
+
+        async function quickAlarm(level) {
+            const desc = document.getElementById('alarmDesc').value.trim() || null;
+            try {
+                const res = await fetch("/api/alarms", {
+                    method: "POST",
+                    headers: window.IMJX.authHeaders(session),
+                    body: JSON.stringify({ machine_code: machineCode, level, description: desc }),
+                });
+                if (!res.ok) { alert("❌ فشل إرسال البلاغ."); return; }
+                document.getElementById('alarmDesc').value = "";
+                alert("✅ تم إرسال البلاغ لفريق الصيانة.");
+                loadAlarms();
+            } catch (e) { alert("❌ فشل إرسال البلاغ."); }
+        }
+
+        async function loadAlarms() {
+            const box = document.getElementById('alarmsList');
+            try {
+                const res = await fetch(`/api/alarms?machine_code=${encodeURIComponent(machineCode)}&status=open`, { headers: window.IMJX.authHeaders(session) });
+                const rows = await res.json();
+                box.innerHTML = rows.length ? rows.map(renderAlarmRow).join("") : `<p class="text-slate-600">Aucune alarme active.</p>`;
+            } catch (e) { box.innerHTML = `<p class="text-red-400">Erreur de chargement.</p>`; }
+        }
+
+        function levelBadge(level) {
+            return { critical: "🔴", warning: "🟡", info: "ℹ️" }[level] || "•";
+        }
+
+        function renderAlarmRow(a) {
+            const canManage = isMntOrAdmin;
+            return `
+                <div class="bg-slate-900/60 p-2 rounded border border-slate-700 flex justify-between items-start gap-2">
+                    <div>
+                        <div class="font-bold">${levelBadge(a.level)} ${a.description || "(sans description)"}</div>
+                        <div class="text-slate-500 text-[10px] font-mono">${a.created_by} · ${new Date(a.created_at).toLocaleString('fr-FR')}</div>
+                    </div>
+                    ${canManage ? `
+                        <select onchange="updateAlarm(${a.id}, this.value)" class="bg-slate-800 border border-slate-600 rounded text-[10px] p-1 outline-none">
+                            <option value="open" ${a.status === 'open' ? 'selected' : ''}>Open</option>
+                            <option value="in_progress" ${a.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                            <option value="resolved" ${a.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+                        </select>
+                    ` : `<span class="text-[10px] text-slate-500">${a.status}</span>`}
+                </div>
+            `;
+        }
+
+        async function updateAlarm(id, status) {
+            await fetch(`/api/alarms/${id}`, { method: "PUT", headers: window.IMJX.authHeaders(session), body: JSON.stringify({ status }) });
+            loadAlarms();
+        }
+
+        function toggleNewMaintenanceForm() {
+            const form = document.getElementById('newMaintenanceForm');
+            form.classList.toggle('hidden');
+        }
+
+        async function createMaintenance() {
+            const description = document.getElementById('newMaintDesc').value.trim() || null;
+            const tech = document.getElementById('newMaintTech').value.trim() || null;
+            await fetch("/api/maintenance", {
+                method: "POST",
+                headers: window.IMJX.authHeaders(session),
+                body: JSON.stringify({ machine_code: machineCode, assigned_technician: tech, description }),
+            });
+            document.getElementById('newMaintDesc').value = "";
+            document.getElementById('newMaintTech').value = "";
+            toggleNewMaintenanceForm();
+            loadMaintenance();
+        }
+
+        async function loadMaintenance() {
+            const box = document.getElementById('maintList');
+            try {
+                const res = await fetch(`/api/maintenance?machine_code=${encodeURIComponent(machineCode)}`, { headers: window.IMJX.authHeaders(session) });
+                const rows = await res.json();
+                box.innerHTML = rows.length ? rows.map(renderMaintRow).join("") : `<p class="text-slate-600">Aucune intervention enregistrée.</p>`;
+            } catch (e) { box.innerHTML = `<p class="text-red-400">Erreur de chargement.</p>`; }
+        }
+
+        function maintStatusBadge(status) {
+            return { open: ["🟡 Ouverte", "text-amber-400"], in_progress: ["🔵 En cours", "text-cyan-400"], resolved: ["🟢 Résolue", "text-emerald-400"] }[status] || [status, "text-slate-400"];
+        }
+
+        function renderMaintRow(mr) {
+            const [label, cls] = maintStatusBadge(mr.status);
+            const canManage = isMntOrAdmin;
+            return `
+                <div class="bg-slate-900/60 p-2 rounded border border-slate-700 space-y-1">
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <div class="font-bold">${mr.description || "(sans description)"}</div>
+                            <div class="text-slate-500 text-[10px] font-mono">Demandé par ${mr.requested_by} · ${new Date(mr.created_at).toLocaleString('fr-FR')} ${mr.assigned_technician ? '· Technicien: ' + mr.assigned_technician : ''}</div>
+                        </div>
+                        <span class="${cls} font-bold text-[10px] whitespace-nowrap">${label}</span>
+                    </div>
+                    ${canManage ? `
+                        <div class="flex gap-1 pt-1">
+                            <select onchange="updateMaintenance(${mr.id}, this.value)" class="bg-slate-800 border border-slate-600 rounded text-[10px] p-1 outline-none">
+                                <option value="open" ${mr.status === 'open' ? 'selected' : ''}>Open</option>
+                                <option value="in_progress" ${mr.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                                <option value="resolved" ${mr.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+                            </select>
+                            <button onclick="toggleNoteForm(${mr.id})" class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded">+ Note</button>
+                        </div>
+                        <div id="noteForm_${mr.id}" class="hidden space-y-1 pt-1">
+                            <textarea id="noteText_${mr.id}" rows="2" placeholder="Note d'intervention..." class="w-full p-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100 text-[10px] outline-none resize-none"></textarea>
+                            <input type="file" id="notePhoto_${mr.id}" accept="image/*,video/*" class="text-[9px] text-slate-400">
+                            <button onclick="submitNote(${mr.id})" class="text-[10px] bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 px-2 py-1 rounded w-full">Ajouter</button>
+                        </div>
+                        <div id="notesList_${mr.id}" class="space-y-1 pt-1"></div>
+                    ` : ""}
+                </div>
+            `;
+        }
+
+        async function updateMaintenance(id, status) {
+            await fetch(`/api/maintenance/${id}`, { method: "PUT", headers: window.IMJX.authHeaders(session), body: JSON.stringify({ status }) });
+            loadMaintenance();
+        }
+
+        function toggleNoteForm(id) {
+            document.getElementById(`noteForm_${id}`).classList.toggle('hidden');
+            loadNotes(id);
+        }
+
+        async function loadNotes(id) {
+            const box = document.getElementById(`notesList_${id}`);
+            const res = await fetch(`/api/maintenance/${id}/notes`, { headers: window.IMJX.authHeaders(session) });
+            const rows = await res.json();
+            box.innerHTML = rows.map(n => `
+                <div class="bg-slate-950 p-1.5 rounded text-[10px]">
+                    <div class="text-slate-400">${n.author} · ${new Date(n.created_at).toLocaleString('fr-FR')}</div>
+                    ${n.note ? `<div>${n.note}</div>` : ""}
+                    ${n.file_path ? (n.file_name && n.file_name.match(/\.(mp4|webm|mov)$/i) ? `<video src="${n.file_path}" controls style="max-width:100%;border-radius:4px;"></video>` : `<img src="${n.file_path}" style="max-width:100%;border-radius:4px;">`) : ""}
+                </div>
+            `).join("");
+        }
+
+        async function submitNote(id) {
+            const noteText = document.getElementById(`noteText_${id}`).value.trim() || null;
+            const fileInput = document.getElementById(`notePhoto_${id}`);
+            let file_path = null, file_name = null;
+
+            if (fileInput.files[0]) {
+                const formData = new FormData();
+                formData.append("file", fileInput.files[0]);
+                const uploadRes = await fetch("/api/upload", { method: "POST", headers: { "Authorization": "Bearer " + session.token }, body: formData });
+                const uploadData = await uploadRes.json();
+                file_path = uploadData.file_path;
+                file_name = uploadData.file_name;
+            }
+
+            await fetch(`/api/maintenance/${id}/notes`, {
+                method: "POST", headers: window.IMJX.authHeaders(session),
+                body: JSON.stringify({ note: noteText, file_path, file_name }),
+            });
+            document.getElementById(`noteText_${id}`).value = "";
+            fileInput.value = "";
+            loadNotes(id);
+        }
+    </script>
+</body>
+</html>

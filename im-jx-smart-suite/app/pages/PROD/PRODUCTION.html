@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX Smart Suite v6.2 - Auto Sync Node</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>html,body{overscroll-behavior-y:contain;}</style>
+    <script>window.IMJX_PAGE = { department: "PROD", page: "PRODUCTION", roles: ["operator"] };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans select-none">
+
+    <div class="max-w-4xl mx-auto bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden mb-12">
+        <div class="bg-slate-950 p-4 flex justify-between items-center border-b-2 border-blue-500">
+            <div>
+                <h1 class="text-lg font-bold text-blue-400 tracking-wider flex items-center gap-2">
+                    <span>IM JX - Live Sync</span>
+                    <!-- مؤشر المزامنة التلقائية -->
+                    <span id="syncIndicator" class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System Synced"></span>
+                </h1>
+                <p id="syncStatusText" class="text-[9px] text-emerald-400 uppercase font-mono tracking-widest">Cloud Connection: Ready</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <input type="date" id="repDate" onchange="triggerAutoSync()" class="bg-slate-800 text-xs p-1 rounded border border-slate-600 text-white font-mono outline-none">
+                <span id="liveClock" class="text-[10px] font-mono text-slate-400">00:00:00</span>
+            </div>
+        </div>
+
+        <!-- الـ Tabs الثلاثة -->
+        <div class="flex border-b border-slate-700 bg-slate-900/50 text-xs font-bold text-center">
+            <button type="button" onclick="switchTab('prod-section', this)" id="tab-prod" class="flex-1 py-3 bg-slate-800 text-blue-400 border-b-2 border-blue-500 transition-all">PRODUCTION & QUALITY</button>
+            <button type="button" onclick="switchTab('tpm-section', this)" id="tab-tpm" class="flex-1 py-3 text-slate-400 border-b-2 border-transparent transition-all">TPM CHECKLIST</button>
+            <button type="button" onclick="switchTab('reclam-section', this)" id="tab-reclam" class="flex-1 py-3 text-slate-400 border-b-2 border-transparent transition-all">ALARMS RECLAM</button>
+        </div>
+
+        <form id="factoryForm" class="p-3 md:p-4 space-y-4" oninput="triggerAutoSync()" onchange="triggerAutoSync()">
+            <!-- معلومات الخط والعملية والآلة -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-900/60 p-3 rounded-lg border border-slate-700 text-xs">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Production Line:</label>
+                    <select id="lineSelect" onchange="updateProcessOptions(); triggerAutoSync();" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                        <option value="1">Line 1</option>
+                        <option value="2">Line 2</option>
+                        <option value="3">Line 3</option>
+                        <option value="4">Line 4</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Process:</label>
+                    <select id="processSelect" onchange="updateMachineOptions(); triggerAutoSync();" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none"></select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Machine:</label>
+                    <select id="machineSelect" onchange="triggerAutoSync()" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-blue-400 font-bold outline-none"></select>
+                </div>
+            </div>
+
+            <!-- معلومات المشغل والشفت -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-900/60 p-3 rounded-lg border border-slate-700 text-xs">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Operator Name:</label>
+                    <input type="text" id="opName" required oninput="logFillContext()" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shift Type:</label>
+                    <select id="shiftPattern" onchange="updateHoursByShift(); triggerAutoSync();" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded font-bold text-yellow-400 outline-none">
+                        <option value="8H">8 Hours Shift</option>
+                        <option value="12H">12 Hours Shift</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shift:</label>
+                    <select id="opShift" onchange="updateHoursByShift(); triggerAutoSync();" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                        <option value="A">Shift A</option>
+                        <option value="B">Shift B</option>
+                        <option value="C">Shift C</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Heat / Forging No:</label>
+                    <input type="text" id="heatNo" placeholder="Batch No" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white uppercase outline-none">
+                </div>
+            </div>
+
+            <!-- القسم الأول: Production & Quality -->
+            <div id="prod-section" class="space-y-4">
+                <div class="bg-slate-900/30 p-3 rounded-lg border border-slate-700 space-y-1.5">
+                    <h3 class="text-xs font-bold text-blue-400 uppercase flex justify-between items-center">
+                        <span>Hourly Matrix Logs</span>
+                        <span id="fillMetaLabel" class="text-[9px] text-slate-400 font-mono"></span>
+                    </h3>
+                    <div class="hidden sm:grid grid-cols-6 gap-2 text-center text-[10px] font-bold text-slate-400 uppercase border-b border-slate-700 pb-1">
+                        <div>Time Slot</div><div>Target</div><div>Actual OK</div><div>Rejection</div><div>Loss Code</div><div>Quality Dimensions</div>
+                    </div>
+                    <div id="hourlyRowsContainer" class="space-y-1.5"></div>
+                </div>
+
+                <div class="bg-slate-900/30 p-3 rounded-lg border border-slate-700 grid grid-cols-3 gap-2 text-xs">
+                    <div><label class="block text-[10px] text-slate-400 mb-1">Tool Name:</label><input type="text" id="toolName" value="Punch-01" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white outline-none"></div>
+                    <div><label class="block text-[10px] text-slate-400 mb-1">Corner #:</label><input type="number" id="cornerNum" value="1" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white outline-none"></div>
+                    <div><label class="block text-[10px] text-slate-400 mb-1">Tool Life:</label><input type="number" id="toolLife" value="0" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded font-bold text-purple-400 outline-none"></div>
+                </div>
+            </div>
+
+            <!-- القسم الثاني: TPM Checklist -->
+            <div id="tpm-section" class="hidden space-y-3">
+                <div class="bg-slate-900/40 p-3 rounded-lg border border-slate-700 space-y-2">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-1">
+                        <h3 class="text-xs font-bold text-amber-400 uppercase">Daily Machine Verification</h3>
+                        <span id="tpmSavedTimeLabel" class="text-[10px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">TPM Check Time: Not Locked</span>
+                    </div>
+                    <div id="tpmContainer" class="space-y-2 divide-y divide-slate-700/50"></div>
+                    <div class="pt-2">
+                        <button type="button" onclick="lockTPMTime()" class="w-full bg-amber-600/20 hover:bg-amber-600/40 text-amber-400 font-bold py-2 rounded text-xs uppercase border border-amber-500/30 transition-all">Lock & Save TPM Time</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- القسم الثالث: Alarms & Reclamations -->
+            <div id="reclam-section" class="hidden space-y-3">
+                <div class="bg-slate-900/40 p-4 rounded-lg border border-slate-700 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                        <h3 class="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+                            <span>🚨 Alarms & Logs Escalation</span>
+                        </h3>
+                        <span class="text-[9px] text-slate-400 uppercase font-mono">Instant Node Notification</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Department:</label>
+                            <select id="reclamTarget" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                                <option value="TECHNICIEN">Maintenance Team (Technicien)</option>
+                                <option value="QUALITY">Quality Control Lab</option>
+                                <option value="ADMINISTRATION">Administration / Logistics</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Issue Category:</label>
+                            <select id="reclamCategory" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-yellow-400 font-bold outline-none">
+                                <option value="CRITICAL_BREAKDOWN">Mechanical / Electrical Breakdown</option>
+                                <option value="GEAR_MICRO_OFFSET">Micro Dimension Offset</option>
+                                <option value="MATERIAL_SHORT">Raw Material Shortage</option>
+                                <option value="SAFETY_HAZARD">Safety / E-Stop Concern</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Detailed Description:</label>
+                        <textarea id="reclamText" rows="3" placeholder="Write logs or note details here..." class="w-full p-2 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono text-xs outline-none placeholder-slate-600 resize-none"></textarea>
+                    </div>
+
+                    <div class="pt-1">
+                        <!-- إنذار الريكلاماسيون يبقى يدوياً بكبسة زر لأهميته القصوى والاستعجال -->
+                        <button type="button" onclick="sendInstantReclamation()" id="btnSendReclam" class="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 font-bold py-2.5 rounded text-xs uppercase border border-red-500/40 transition-all tracking-wider flex items-center justify-center gap-2">
+                            <span>Trigger Active Alarm 📢</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-2">
+                <button type="button" onclick="resetFormInputs()" class="w-full bg-red-600/10 hover:bg-red-600/20 text-red-400 py-2 rounded-lg text-xs uppercase border border-red-500/20 transition-all">Reset Form</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="text-center text-[10px] text-slate-500 font-mono pb-8 uppercase tracking-widest">
+        Made in Jexas by Najar &bull; Live Sync Node v6.2
+    </div>
+
+    <!-- Modal الخاص بالجودة -->
+    <div id="qualityModal" class="fixed inset-0 bg-black/80 flex items-center justify-center hidden p-2 z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-4xl w-full p-4 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h3 class="text-sm font-bold text-yellow-400 uppercase" id="modalTitle">Stop Light Chart: 5 Pcs Check</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-center text-xs text-slate-200 border border-slate-700 min-w-[600px]">
+                    <thead class="bg-slate-900 text-[10px] uppercase font-bold text-slate-400">
+                        <tr class="border-b border-slate-700">
+                            <th class="p-2 border-r border-slate-700 w-24">Samples</th>
+                            <th class="p-2 border-r border-slate-700">Dim 1</th><th class="p-2 border-r border-slate-700">Dim 2</th>
+                            <th class="p-2 border-r border-slate-700">Dim 3</th><th class="p-2 border-r border-slate-700">Dim 4</th>
+                            <th class="p-2 border-r border-slate-700">Dim 5</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalTableBody" class="divide-y divide-slate-700"></tbody>
+                </table>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-700">
+                <button type="button" onclick="saveQualityData()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded text-xs uppercase transition-all">Save & Sync Matrix</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let hourlyQualityStorage = [], activeHourIndex = 0, tpmLockedTime = "00:00", initialFillTime = "", initialFillOp = "";
+        let syncTimeout = null; // التحكم ف وقت المزامنة لتفادي تكرار الـ Requests ف نفس اللحظة
+        
+        // googleScriptUrl remplacé par le backend IM JX (voir shared/im-jx-client.js)
+
+        const hoursData = {
+            "8H": {
+                "A": ["22-23", "23-00", "00-01", "01-02", "02-03", "03-04", "04-05", "05-06"],
+                "B": ["06-07", "07-08", "08-09", "09-10", "10-11", "11-12", "12-13", "13-14"],
+                "C": ["14-15", "15-16", "16-17", "17-18", "18-19", "19-20", "20-21", "21-22"]
+            },
+            "12H": {
+                "A": ["18-19", "19-20", "20-21", "21-22", "22-23", "23-00", "00-01", "01-02", "02-03", "03-04", "04-05", "05-06"],
+                "B": ["06-07", "07-08", "08-09", "09-10", "10-11", "11-12", "12-13", "13-14", "14-15", "15-16", "16-17", "17-18"]
+            }
+        };
+
+        const lineData = {
+            "1": { "Centring & Facing": ["M035"], "CNC Turning": ["M008", "M009"], "Boot rolling": ["P3-055"], "Spline Rolling": ["M042"], "Grooving": ["M010"], "facing male shank": ["M130"] },
+            "2": { "Centring & Facing": ["M094", "M076"], "CNC Turning": ["M077", "M068"], "Boot rolling": ["New"], "Spline Rolling": ["M071"], "Grooving": ["M067"] },
+            "3": { "Centring & Facing": ["M131", "M132"], "CNC Turning": ["M040", "M041", "M101", "M102"], "Spline Rolling": ["M122"], "Grooving": ["M069", "M011"] },
+            "4": { "Centring & Facing": ["M115", "M078", "M147", "M146"], "CNC Turning": ["M124", "M125", "M126", "M127", "Doosan"], "Boot rolling": ["MTE4", "MTE5"], "Spline Rolling": ["M145", "M160"], "Grooving": ["M128", "M129"] }
+        };
+
+        const tpmItems = ["Pressure", "Lubrication", "Hydraulic", "Pneumatic", "Light Curtains", "E-Stop", "Leakages", "Alignment", "Cleanliness"];
+
+        document.getElementById('repDate').value = new Date().toISOString().split('T')[0];
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        function switchTab(id, btnElement) {
+            document.getElementById('prod-section').classList.add('hidden');
+            document.getElementById('tpm-section').classList.add('hidden');
+            document.getElementById('reclam-section').classList.add('hidden');
+            document.getElementById(id).classList.remove('hidden');
+
+            const tabs = btnElement.parentElement.children;
+            for(let tab of tabs) {
+                tab.classList.remove('bg-slate-800', 'text-blue-400', 'border-blue-500');
+                tab.classList.add('text-slate-400', 'border-transparent');
+            }
+            btnElement.classList.remove('text-slate-400', 'border-transparent');
+            btnElement.classList.add('bg-slate-800', 'text-blue-400', 'border-blue-500');
+        }
+
+        function logFillContext() {
+            const op = document.getElementById('opName').value.trim();
+            if(op && !initialFillTime) {
+                initialFillTime = new Date().toTimeString().split(' ')[0].substring(0,5);
+                initialFillOp = op;
+                document.getElementById('fillMetaLabel').innerText = `(${op} ${initialFillTime})`;
+            }
+        }
+
+        function updateProcessOptions() {
+            const line = document.getElementById('lineSelect').value;
+            const processSelect = document.getElementById('processSelect');
+            processSelect.innerHTML = "";
+            Object.keys(lineData[line]).forEach(proc => {
+                const opt = document.createElement('option');
+                opt.value = proc;
+                opt.innerText = proc;
+                processSelect.appendChild(opt);
+            });
+            updateMachineOptions();
+        }
+
+        function updateMachineOptions() {
+            const line = document.getElementById('lineSelect').value;
+            const proc = document.getElementById('processSelect').value;
+            const machineSelect = document.getElementById('machineSelect');
+            machineSelect.innerHTML = "";
+            if (lineData[line] && lineData[line][proc]) {
+                lineData[line][proc].forEach(mac => {
+                    const opt = document.createElement('option');
+                    opt.value = mac;
+                    opt.innerText = mac;
+                    machineSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function updateHoursByShift() {
+            const p = document.getElementById('shiftPattern').value;
+            const s = document.getElementById('opShift').value;
+            const slots = (hoursData[p] && hoursData[p][s]) ? hoursData[p][s] : [];
+            const container = document.getElementById('hourlyRowsContainer');
+            
+            hourlyQualityStorage = Array(slots.length).fill("GGGGGGGGGGGGGGGGGGGGGGGGG");
+            container.innerHTML = slots.length > 0 ? "" : "<p class='text-red-400 text-center text-xs py-2'>Shift not available</p>";
+            
+            slots.forEach((h, i) => {
+                const row = document.createElement('div');
+                row.className = "grid grid-cols-2 sm:grid-cols-6 gap-2 items-center bg-slate-800 p-2 rounded border border-slate-700 text-xs";
+                row.innerHTML = `
+                    <div class="col-span-2 sm:col-span-1 font-mono font-bold text-slate-300">${h}</div>
+                    <div><input type="number" value="180" id="tgt_${i}" class="w-full p-1 bg-slate-900 border border-slate-700 rounded text-center text-slate-400 outline-none"></div>
+                    <div><input type="number" value="0" id="act_${i}" oninput="logFillContext()" class="w-full p-1 bg-slate-900 border border-slate-700 rounded text-center font-bold text-emerald-400 outline-none"></div>
+                    <div><input type="number" value="0" id="rej_${i}" oninput="logFillContext()" class="w-full p-1 bg-slate-900 border border-slate-700 rounded text-center font-bold text-red-400 outline-none"></div>
+                    <div>
+                        <select id="loss_${i}" onchange="logFillContext()" class="w-full p-1 bg-slate-900 border border-slate-700 rounded text-yellow-400 font-bold text-center outline-none">
+                            <option value="OK">Running</option><option value="B">Breakdown</option><option value="S">Setup</option>
+                            <option value="T">Tool Change</option><option value="R">Rework</option><option value="C">Cleaning</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <button type="button" onclick="openQualityModal(${i})" id="qbtn_${i}" class="w-full bg-slate-700 text-yellow-400 font-bold py-1 px-2 rounded text-[10px] uppercase">Check 5 Pcs</button>
+                    </div>`;
+                container.appendChild(row);
+            });
+        }
+
+        function openQualityModal(idx) {
+            activeHourIndex = idx;
+            const tbody = document.getElementById('modalTableBody');
+            const currentString = hourlyQualityStorage[idx];
+            tbody.innerHTML = "";
+            for(let p = 0; p < 5; p++) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="p-2 font-bold text-blue-400 bg-slate-900/40 border-r border-slate-700">P#${p+1}</td>`;
+                for(let d = 0; d < 5; d++) {
+                    const charVal = currentString[p * 5 + d] || "G";
+                    tr.innerHTML += `
+                        <td class="p-1 border-r border-slate-700">
+                            <select id="mdim_${p}_${d}" class="p-1 w-full bg-slate-900 rounded font-bold text-center text-xs outline-none">
+                                <option value="G" ${charVal==='G'?'selected':''}>G</option>
+                                <option value="X" ${charVal==='X'?'selected':''}>X</option>
+                                <option value="N" ${charVal==='N'?'selected':''}>N</option>
+                                <option value="R" ${charVal==='R'?'selected':''}>R</option>
+                            </select>
+                        </td>`;
+                }
+                tbody.appendChild(tr);
+            }
+            document.getElementById('qualityModal').classList.remove('hidden');
+        }
+
+        function saveQualityData() {
+            let compiledString = "";
+            for(let p = 0; p < 5; p++) { for(let d = 0; d < 5; d++) { compiledString += document.getElementById(`mdim_${p}_${d}`).value; } }
+            hourlyQualityStorage[activeHourIndex] = compiledString;
+            document.getElementById(`qbtn_${activeHourIndex}`).className = "w-full bg-emerald-950 text-emerald-400 font-bold py-1 px-2 rounded text-[10px] uppercase border border-emerald-500";
+            document.getElementById(`qbtn_${activeHourIndex}`).innerText = "Checked ✓";
+            document.getElementById('qualityModal').classList.add('hidden');
+            
+            // دفع تحديث فوري للمصفوفة بعد الحفظ من المودال
+            triggerAutoSync();
+        }
+
+        function lockTPMTime() {
+            tpmLockedTime = new Date().toTimeString().split(' ')[0].substring(0,5);
+            document.getElementById('tpmSavedTimeLabel').innerText = `Locked at ${tpmLockedTime}`;
+            document.getElementById('tpmSavedTimeLabel').className = "text-[10px] font-mono text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded";
+            triggerAutoSync();
+        }
+
+        function renderTPM() {
+            const container = document.getElementById('tpmContainer');
+            container.innerHTML = "";
+            tpmItems.forEach((m, i) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "flex justify-between items-center pt-2 text-xs";
+                itemDiv.innerHTML = `<span>${i+1}. ${m}</span>
+                    <select id="tpm_${i}" onchange="triggerAutoSync()" class="p-1 rounded bg-slate-900 text-emerald-400 font-bold text-center border border-slate-700 outline-none">
+                        <option value="OK">OK</option><option value="NOK">NOK</option>
+                    </select>`;
+                container.appendChild(itemDiv);
+            });
+        }
+
+        // دالة تجميع الحزمة النصية (Plain Text Payload)
+        function buildPlainTextPayload(operatorName) {
+            let parts = [];
+            parts.push("IM_DATA_LOG");
+            parts.push(document.getElementById('repDate').value);
+            parts.push(operatorName);
+            
+            const currentPattern = document.getElementById('shiftPattern').value;
+            const currentShift = document.getElementById('opShift').value;
+            parts.push(`${currentPattern}-${currentShift}`);
+
+            const lineNo = document.getElementById('lineSelect').value;
+            const processName = document.getElementById('processSelect').value;
+            const machineName = document.getElementById('machineSelect').value;
+            parts.push(`L${lineNo}-${processName}-${machineName}`);
+            
+            parts.push(document.getElementById('heatNo').value.trim() || "NA");
+            parts.push(`TOOL:${document.getElementById('toolName').value.trim()||'NA'}-C${document.getElementById('cornerNum').value||'1'}-L${document.getElementById('toolLife').value||'0'}`);
+            
+            let tpmStatus = [];
+            tpmItems.forEach((m, i) => { tpmStatus.push(`${m}:${document.getElementById(`tpm_${i}`).value}`); });
+            parts.push(`TPM_LOCK:${tpmLockedTime}[${tpmStatus.join(',')}]`);
+
+            const slots = (hoursData[currentPattern] && hoursData[currentPattern][currentShift]) ? hoursData[currentPattern][currentShift] : [];
+            let hourlyLogs = [];
+            slots.forEach((h, i) => {
+                const tgt = document.getElementById(`tgt_${i}`).value || "0";
+                const act = document.getElementById(`act_${i}`).value || "0";
+                const rej = document.getElementById(`rej_${i}`).value || "0";
+                const loss = document.getElementById(`loss_${i}`).value;
+                const qMatrix = hourlyQualityStorage[i] || "GGGGGGGGGGGGGGGGGGGGGGGGG";
+                hourlyLogs.push(`[Hour:${h}|Tgt:${tgt}|Act:${act}|Rej:${rej}|Loss:${loss}|Q:${qMatrix}]`);
+            });
+            
+            parts.push(`HOURS_DATA:${hourlyLogs.join(',')}`);
+            parts.push(`META_FILL:${initialFillOp||operatorName}@${initialFillTime||'00:00'}`);
+
+            return parts.join(";");
+        }
+
+        // 🔄 محرك المزامنة التلقائية بالخلفية (Debounced Auto-Sync Engine)
+        function triggerAutoSync() {
+            const operator = document.getElementById('opName').value.trim();
+            // إلغاء أي تزامن معلق إذا قام المستخدم بإدخال إدخال جديد بسرعة لتفادي تداخل الـ Requests
+            if (syncTimeout) clearTimeout(syncTimeout);
+            
+            if (!operator) {
+                setSyncUIStatus('waiting', 'Waiting for Operator name...');
+                return;
+            }
+
+            setSyncUIStatus('pending', 'Changes detected... Saving in 1.5s');
+
+            // بدء العد التنازلي لإرسال البيانات أوتوماتيكياً بعد توقف الكتابة بـ 1.5 ثانية
+            syncTimeout = setTimeout(() => {
+                executeBackgroundSync(operator);
+            }, 1500);
+        }
+
+        function executeBackgroundSync(operatorName) {
+            setSyncUIStatus('syncing', 'Syncing live data to cloud...');
+            const payload = buildPlainTextPayload(operatorName);
+
+            IMJX.sync(payload)
+            .then(() => {
+                setSyncUIStatus('success', 'All changes autosaved to Google Sheets');
+            })
+            .catch(err => {
+                console.error(err);
+                setSyncUIStatus('error', 'Sync Failed. Retrying on next input...');
+            });
+        }
+
+        function setSyncUIStatus(state, message) {
+            const ind = document.getElementById('syncIndicator');
+            const txt = document.getElementById('syncStatusText');
+            txt.innerText = message;
+
+            if (state === 'success') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
+                txt.className = "text-[9px] text-emerald-400 uppercase font-mono tracking-wider";
+            } else if (state === 'syncing') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping";
+                txt.className = "text-[9px] text-blue-400 uppercase font-mono tracking-wider";
+            } else if (state === 'pending') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                txt.className = "text-[9px] text-amber-400 uppercase font-mono tracking-wider";
+            } else if (state === 'waiting') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-slate-600";
+                txt.className = "text-[9px] text-slate-400 uppercase font-mono tracking-wider";
+            } else if (state === 'error') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce";
+                txt.className = "text-[9px] text-red-400 uppercase font-mono tracking-wider font-bold";
+            }
+        }
+
+        // تصعيد الريكلاماسيون كيبقى يدوي لأنه بمثابة زر طوارئ منفصل لا يحتمل التـأخير
+        function sendInstantReclamation() {
+            const operator = document.getElementById('opName').value.trim();
+            if(!operator) { alert("⚠️ أدخل اسم المشغل أولاً لربطه بالبلاغ!"); return; }
+
+            const target = document.getElementById('reclamTarget').value;
+            const category = document.getElementById('reclamCategory').value;
+            const textDesc = document.getElementById('reclamText').value.trim() || "No logs.";
+            
+            const lineNo = document.getElementById('lineSelect').value;
+            const processName = document.getElementById('processSelect').value;
+            const machineName = document.getElementById('machineSelect').value;
+            const timestamp = new Date().toTimeString().split(' ')[0].substring(0,5);
+
+            const reclamPayload = `IM_RECLAM;${document.getElementById('repDate').value};${timestamp};${operator};L${lineNo}-${processName}-${machineName};${target};${category};${textDesc}`;
+
+            const btn = document.getElementById('btnSendReclam');
+            btn.innerText = "Transmitting... ⏳";
+            btn.disabled = true;
+
+            IMJX.sync(reclamPayload)
+            .then(() => {
+                alert(`🚨 تم تصعيد البلاغ بنجاح إلى: ${target}`);
+                document.getElementById('reclamText').value = "";
+                btn.innerText = "Trigger Active Alarm 📢";
+                btn.disabled = false;
+            })
+            .catch(err => {
+                console.error(err);
+                alert("❌ فشل إرسال بلاغ الريكلاماسيون.");
+                btn.innerText = "Trigger Active Alarm 📢";
+                btn.disabled = false;
+            });
+        }
+
+        function resetFormInputs() {
+            if(confirm("هل أنت متأكد من مسح البيانات بالكامل؟")) {
+                document.getElementById('factoryForm').reset();
+                initAll();
+            }
+        }
+
+        function initAll() {
+            updateProcessOptions();
+            updateHoursByShift(); 
+            renderTPM();
+            setSyncUIStatus('waiting', 'Ready. Enter Operator name to activate sync node.');
+        }
+
+        initAll();
+    </script>
+</body>
+</html>

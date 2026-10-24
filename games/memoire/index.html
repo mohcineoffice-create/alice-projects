@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>لعبة الذاكرة</title>
+<style>
+:root{--bg:#10162B;--card:#1B2546;--ink:#F6F4EE;--accent:#FF8A3D;--soft:#C9CFE0}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:system-ui,"Segoe UI",Tahoma,sans-serif;display:flex;flex-direction:column;align-items:center;padding:16px}
+h1{margin:8px 0 4px;font-size:1.6rem}
+.bar{display:flex;gap:16px;align-items:center;color:var(--soft);margin-bottom:12px;flex-wrap:wrap;justify-content:center}
+.bar b{color:var(--accent)}
+button{font:inherit;background:var(--accent);color:var(--bg);border:0;border-radius:999px;padding:8px 20px;font-weight:700}
+#grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:min(92vw,420px)}
+.c{aspect-ratio:1;perspective:600px;border:0;background:none;padding:0}
+.in{position:relative;width:100%;height:100%;transition:transform .35s;transform-style:preserve-3d}
+.c.open .in,.c.done .in{transform:rotateY(180deg)}
+.f,.b{position:absolute;inset:0;border-radius:14px;display:flex;align-items:center;justify-content:center;backface-visibility:hidden;font-size:2.2rem}
+.b{background:var(--card);border:2px solid #2A3766;color:var(--accent)}
+.f{background:var(--ink);transform:rotateY(180deg)}
+.c.done .f{background:#BFEBC9}
+#msg{min-height:2.4em;margin-top:14px;text-align:center;font-size:1.2rem;color:var(--accent)}
+footer{margin-top:auto;color:#6F7899;font-size:.8rem;padding-top:16px}
+</style>
+</head>
+<body>
+<h1>لعبة الذاكرة</h1>
+<div class="bar"><span>الحركات: <b id="mv">0</b></span><span>الوقت: <b id="tm">0</b>ث</span><span>أفضل نتيجة: <b id="best">—</b></span><button id="re">لعبة جديدة</button></div>
+<div id="grid"></div>
+<div id="msg"></div>
+<footer>CashFlow Hacks · مختبر الذكاء الاصطناعي</footer>
+<script>
+(function(){
+var E=["🍎","🚀","🎧","⚽","🌙","🔥","🐱","⭐"];
+var grid=document.getElementById("grid"),mv=document.getElementById("mv"),tm=document.getElementById("tm"),
+    best=document.getElementById("best"),msg=document.getElementById("msg");
+var first=null,lock=false,moves=0,pairs=0,t0=0,timer=null;
+function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+function showBest(){var b=store("memoire_best");best.textContent=b?b+" حركة":"—"}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+function start(){
+  clearInterval(timer);first=null;lock=false;moves=0;pairs=0;t0=0;
+  mv.textContent=0;tm.textContent=0;msg.textContent="";grid.innerHTML="";
+  shuffle(E.concat(E)).forEach(function(e){
+    var b=document.createElement("button");b.className="c";b.setAttribute("aria-label","بطاقة");
+    b.innerHTML='<div class="in"><div class="b">؟</div><div class="f">'+e+'</div></div>';
+    b.dataset.v=e;b.onclick=function(){flip(b)};grid.appendChild(b);
+  });
+  showBest();
+}
+function flip(c){
+  if(lock||c===first||c.classList.contains("done"))return;
+  if(!t0){t0=Date.now();timer=setInterval(function(){tm.textContent=Math.floor((Date.now()-t0)/1000)},500)}
+  c.classList.add("open");
+  if(!first){first=c;return}
+  moves++;mv.textContent=moves;lock=true;
+  if(first.dataset.v===c.dataset.v){
+    first.classList.add("done");c.classList.add("done");first=null;lock=false;pairs++;
+    if(pairs===E.length)win();
+  }else{
+    var a=first;first=null;
+    setTimeout(function(){a.classList.remove("open");c.classList.remove("open");lock=false},750);
+  }
+}
+function win(){
+  clearInterval(timer);
+  var b=parseInt(store("memoire_best"),10);
+  if(!b||moves<b){store("memoire_best",String(moves));msg.textContent="رقم قياسي جديد! أنهيتها في "+moves+" حركة 🎉"}
+  else msg.textContent="أحسنت! أنهيتها في "+moves+" حركة";
+  showBest();
+}
+document.getElementById("re").onclick=start;
+start();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - Gestion des Machines</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/shared/vendor/qrious.min.js"></script>
+    <script src="/shared/vendor/JsBarcode.all.min.js"></script>
+    <script src="/shared/vendor/jspdf.umd.min.js"></script>
+    <style>html,body{overscroll-behavior-y:contain;}</style>
+    <script>window.IMJX_PAGE = { department: "ALL", roles: ["admin"], page: "MACHINES_ADMIN" };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans">
+
+    <div class="max-w-6xl mx-auto space-y-4 mb-16">
+        <div class="bg-slate-900 rounded-xl border border-slate-700 p-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-blue-400 tracking-wider">🏭 Gestion des Machines — Identité digitale & QR/Barcode</h1>
+                <p class="text-[10px] text-slate-400 uppercase font-mono">Machine ID · QR Code · Code 128 / Code 39 · Impression étiquettes</p>
+            </div>
+            <a href="/admin.html" class="text-[10px] text-slate-400 hover:text-white border border-slate-600 rounded px-2 py-1">← Retour Admin</a>
+        </div>
+
+        <!-- Formulaire nouvelle machine -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 space-y-2">
+            <h2 class="text-xs font-bold text-emerald-400 uppercase">+ Nouvelle machine</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <input id="fCode" placeholder="Code (ex: M200)" class="p-1.5 bg-slate-900 border border-slate-600 rounded text-white uppercase outline-none">
+                <input id="fName" placeholder="Nom" class="p-1.5 bg-slate-900 border border-slate-600 rounded text-white outline-none">
+                <input id="fType" placeholder="Type" class="p-1.5 bg-slate-900 border border-slate-600 rounded text-white outline-none">
+                <select id="fDept" class="p-1.5 bg-slate-900 border border-slate-600 rounded text-white outline-none">
+                    <option value="PROD">PROD</option><option value="PED">PED</option><option value="MNT">MNT</option>
+                    <option value="QUALITY">QUALITY</option><option value="METROLOGIE">METROLOGIE</option><option value="METALLURGIE">METALLURGIE</option>
+                </select>
+                <input id="fLocation" placeholder="Emplacement (ex: Line 2)" class="p-1.5 bg-slate-900 border border-slate-600 rounded text-white outline-none">
+                <input id="fSerial" placeholder="N° Série" class="p-1.5 bg-slate-900 border border-slate-600 rounded text-white outline-none">
+                <input id="fInstallDate" type="date" class="p-1.5 bg-slate-900 border border-slate-600 rounded text-white outline-none">
+                <input id="fResponsible" placeholder="Responsable" class="p-1.5 bg-slate-900 border border-slate-600 rounded text-white outline-none">
+            </div>
+            <button onclick="createMachine()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded text-xs uppercase">Créer la machine</button>
+        </div>
+
+        <!-- Liste des machines -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+            <div class="p-3 border-b border-slate-700 flex justify-between items-center">
+                <h2 class="text-xs font-bold text-slate-300 uppercase">Machines enregistrées</h2>
+                <button onclick="printSelectedLabels()" class="text-[10px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded border border-blue-500/30">🖨️ Imprimer étiquettes sélectionnées</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs min-w-[900px]">
+                    <thead class="bg-slate-950 text-[10px] uppercase text-slate-400 border-b border-slate-700">
+                        <tr>
+                            <th class="p-2"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
+                            <th class="p-2">Code</th><th class="p-2">Nom</th><th class="p-2">Dept</th>
+                            <th class="p-2">Emplacement</th><th class="p-2">Statut</th><th class="p-2">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="machinesTableBody" class="divide-y divide-slate-700"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Aperçu QR / Barcode -->
+        <div id="labelPreview" class="hidden bg-slate-800 rounded-xl border border-slate-700 p-4 space-y-3">
+            <h2 class="text-xs font-bold text-cyan-400 uppercase" id="labelPreviewTitle">Aperçu étiquette</h2>
+            <div class="flex flex-wrap gap-6 items-start">
+                <div class="text-center">
+                    <canvas id="previewQR"></canvas>
+                    <p class="text-[9px] text-slate-500 mt-1">QR Code</p>
+                </div>
+                <div class="text-center">
+                    <svg id="previewBarcode128"></svg>
+                    <p class="text-[9px] text-slate-500 mt-1">Code 128</p>
+                </div>
+                <div class="text-center">
+                    <svg id="previewBarcode39"></svg>
+                    <p class="text-[9px] text-slate-500 mt-1">Code 39</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="downloadPreviewPNG()" class="text-[10px] bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded">⬇️ PNG (QR)</button>
+                <button onclick="closeLabelPreview()" class="text-[10px] bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let session, machines = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            session = window.IMJX.getSession();
+            if (!session) return;
+            await loadMachines();
+        });
+
+        async function loadMachines() {
+            const res = await fetch("/api/machines", { headers: window.IMJX.authHeaders(session) });
+            machines = await res.json();
+            renderTable();
+        }
+
+        function statusOptions(current) {
+            return ["operational", "maintenance", "down", "retired"].map(s => `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`).join("");
+        }
+
+        function renderTable() {
+            document.getElementById('machinesTableBody').innerHTML = machines.map(m => `
+                <tr class="hover:bg-slate-900/40">
+                    <td class="p-2"><input type="checkbox" class="machine-check" data-code="${m.machine_code}"></td>
+                    <td class="p-2 font-mono font-bold text-cyan-400">${m.machine_code}</td>
+                    <td class="p-2">${m.name}</td>
+                    <td class="p-2 text-blue-400">${m.department}</td>
+                    <td class="p-2">${m.location || "—"}</td>
+                    <td class="p-2">
+                        <select onchange="updateStatus('${m.machine_code}', this.value)" class="bg-slate-900 border border-slate-700 rounded text-[10px] p-1 outline-none">
+                            ${statusOptions(m.status)}
+                        </select>
+                    </td>
+                    <td class="p-2 flex gap-1">
+                        <button onclick="showLabelPreview('${m.machine_code}')" class="text-[10px] bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-400 px-2 py-1 rounded">🏷️ Code</button>
+                        <button onclick="deleteMachine('${m.machine_code}')" class="text-[10px] bg-red-600/20 hover:bg-red-600/40 text-red-400 px-2 py-1 rounded">🗑️</button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        function toggleSelectAll(cb) {
+            document.querySelectorAll('.machine-check').forEach(c => c.checked = cb.checked);
+        }
+
+        async function createMachine() {
+            const body = {
+                machine_code: document.getElementById('fCode').value.trim().toUpperCase(),
+                name: document.getElementById('fName').value.trim(),
+                machine_type: document.getElementById('fType').value.trim() || null,
+                department: document.getElementById('fDept').value,
+                location: document.getElementById('fLocation').value.trim() || null,
+                serial_number: document.getElementById('fSerial').value.trim() || null,
+                installation_date: document.getElementById('fInstallDate').value || null,
+                responsible_employee: document.getElementById('fResponsible').value.trim() || null,
+            };
+            if (!body.machine_code || !body.name) { alert("⚠️ Code et Nom sont obligatoires."); return; }
+
+            const res = await fetch("/api/machines", { method: "POST", headers: window.IMJX.authHeaders(session), body: JSON.stringify(body) });
+            if (!res.ok) { const err = await res.json(); alert("❌ " + (err.detail || "Erreur")); return; }
+            ["fCode","fName","fType","fLocation","fSerial","fInstallDate","fResponsible"].forEach(id => document.getElementById(id).value = "");
+            loadMachines();
+        }
+
+        async function updateStatus(code, status) {
+            await fetch(`/api/machines/${encodeURIComponent(code)}`, { method: "PUT", headers: window.IMJX.authHeaders(session), body: JSON.stringify({ status }) });
+        }
+
+        async function deleteMachine(code) {
+            if (!confirm(`Supprimer la machine ${code} ?`)) return;
+            await fetch(`/api/machines/${encodeURIComponent(code)}`, { method: "DELETE", headers: window.IMJX.authHeaders(session) });
+            loadMachines();
+        }
+
+        // ---------- QR / Barcode ----------
+        function machineProfileUrl(code) {
+            return `${window.location.origin}/machine.html?code=${encodeURIComponent(code)}`;
+        }
+
+        function showLabelPreview(code) {
+            const m = machines.find(x => x.machine_code === code);
+            if (!m) return;
+            document.getElementById('labelPreviewTitle').innerText = `Aperçu étiquette — ${m.machine_code} (${m.name})`;
+            document.getElementById('labelPreview').classList.remove('hidden');
+
+            new QRious({ element: document.getElementById('previewQR'), value: machineProfileUrl(m.machine_code), size: 160, level: 'M' });
+            JsBarcode("#previewBarcode128", m.machine_code, { format: "CODE128", width: 2, height: 50, fontSize: 12 });
+            try {
+                JsBarcode("#previewBarcode39", m.machine_code, { format: "CODE39", width: 2, height: 50, fontSize: 12 });
+            } catch (e) { document.getElementById('previewBarcode39').outerHTML = "<p class='text-[9px] text-slate-600'>Code 39 nécessite un code alphanumérique simple.</p>"; }
+
+            document.getElementById('labelPreview').scrollIntoView({ behavior: "smooth" });
+        }
+
+        function closeLabelPreview() {
+            document.getElementById('labelPreview').classList.add('hidden');
+        }
+
+        function downloadPreviewPNG() {
+            const canvas = document.getElementById('previewQR');
+            const link = document.createElement('a');
+            link.download = "machine-qr.png";
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        }
+
+        // ---------- Impression étiquettes multiples ----------
+        function printSelectedLabels() {
+            const codes = Array.from(document.querySelectorAll('.machine-check:checked')).map(c => c.getAttribute('data-code'));
+            if (!codes.length) { alert("⚠️ Sélectionnez au moins une machine (case à cocher)."); return; }
+
+            const win = window.open("", "_blank");
+            win.document.write(`
+                <html><head><title>Étiquettes Machines</title>
+                <style>
+                    body { font-family: monospace; margin: 0; padding: 10px; }
+                    .label { display:inline-block; width:220px; border:1px solid #333; border-radius:6px; padding:10px; margin:6px; text-align:center; page-break-inside: avoid; }
+                    .label h3 { margin: 4px 0; font-size: 13px; }
+                    .label p { margin: 2px 0; font-size: 10px; color:#333; }
+                </style>
+                <script src="/shared/vendor/qrious.min.js"><\/script>
+                </head><body>
+                ${codes.map(c => `<div class="label"><canvas id="qr_${c}"></canvas><h3>${c}</h3><p>${(machines.find(m=>m.machine_code===c)||{}).name || ""}</p></div>`).join("")}
+                <script>
+                    window.onload = function() {
+                        ${codes.map(c => `new QRious({ element: document.getElementById('qr_${c}'), value: '${machineProfileUrl(c)}', size: 130 });`).join("\n")}
+                        setTimeout(function(){ window.print(); }, 400);
+                    };
+                <\/script>
+                </body></html>
+            `);
+            win.document.close();
+        }
+    </script>
+</body>
+</html>

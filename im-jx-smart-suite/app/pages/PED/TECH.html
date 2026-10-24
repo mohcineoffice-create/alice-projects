@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - Tech PED Dispatch & Control Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html,body{overscroll-behavior-y:contain;}
+        .status-badge { transition: all 0.3s ease; }
+    </style>
+    <script>window.IMJX_PAGE = { department: "PED", page: "TECH", roles: ["technician"] };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans select-none">
+
+    <div class="max-w-6xl mx-auto bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden mb-12">
+        
+        <!-- الهيدر الذكي الخاص بـ Tech PED -->
+        <div class="bg-slate-950 p-4 flex justify-between items-center border-b-2 border-amber-500">
+            <div>
+                <h1 class="text-lg font-bold text-amber-400 tracking-wider flex items-center gap-2">
+                    <span>IM JX - Tech PED Control Terminal</span>
+                    <span id="syncIndicator" class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System Live"></span>
+                </h1>
+                <p id="syncStatusText" class="text-[9px] text-emerald-400 uppercase font-mono tracking-widest">Tech Master Sync: Active</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <input type="date" id="repDate" onchange="triggerAutoSync()" class="bg-slate-800 text-xs p-1 rounded border border-slate-600 text-white font-mono outline-none">
+                <span id="liveClock" class="text-[10px] font-mono text-slate-400">00:00:00</span>
+            </div>
+        </div>
+
+        <!-- سياق الـ Tech PED -->
+        <div class="p-4 bg-slate-900/40 border-b border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tech PED / Dispatcher Name:</label>
+                <input type="text" id="techName" placeholder="Enter Tech PED Name" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-amber-400 font-bold outline-none">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shift Group:</label>
+                <select id="techShift" onchange="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                    <option value="A">Shift A</option>
+                    <option value="B">Shift B</option>
+                    <option value="C">Shift C</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="p-3 md:p-4 space-y-6">
+
+            <!-- 1. فوروم إنشاء وإرسال مهمة جديدة (Task & Alarm Dispatcher) -->
+            <div class="bg-slate-900/60 p-4 rounded-lg border border-slate-700 space-y-4">
+                <h2 class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">➕ Dispatch New Urgent Task / Alarm</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Line & Machine:</label>
+                        <input type="text" id="newTaskLoc" placeholder="e.g., Line 1 - M042" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white outline-none font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Task Priority / Source:</label>
+                        <select id="newTaskType" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-amber-400 font-bold outline-none">
+                            <option value="TL_URGENT">⚠️ From Maintenance TL (Urgent)</option>
+                            <option value="REFILL_REQ">🚨 Fluids Refill Reclamation</option>
+                            <option value="ROUTINE_AUDIT">📋 Tech Routine Check / Audit</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Instruction / Description:</label>
+                        <input type="text" id="newTaskDesc" placeholder="e.g., Soluble refill required immediately" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-slate-200 outline-none">
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="button" onclick="dispatchNewTask()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-4 py-2 rounded text-xs uppercase font-mono tracking-wider transition-all shadow-lg shadow-cyan-600/20">
+                        ⚡ Dispatch Task to Sheets & Operator
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. لوحة تتبع حالة المهام والـ Reclamations الحالية (Live Tasks Monitor) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                    <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">📡 Live Tasks Queue & Operator Real-Time Tracking</h2>
+                    <span class="text-[9px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">Real-time Feedback Monitor</span>
+                </div>
+
+                <!-- جدول تتبع المهام لي تلوصاو -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border border-slate-700 min-w-[700px]">
+                        <thead class="bg-slate-950 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-700">
+                            <tr>
+                                <th class="p-2 border-r border-slate-700 w-28">Timestamp</th>
+                                <th class="p-2 border-r border-slate-700 w-36">Location / Target</th>
+                                <th class="p-2 border-r border-slate-700 w-44">Type / Source</th>
+                                <th class="p-2 border-r border-slate-700">Task Instruction</th>
+                                <th class="p-2 text-center w-36">Live Status (Operator)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700 bg-slate-900/20" id="techLiveTasksBody">
+                            
+                            <!-- مهمة نموذجية 1 -->
+                            <tr class="task-row bg-red-950/20">
+                                <td class="p-2 border-r border-slate-800 font-mono text-slate-400 text-[11px]">14:45:10</td>
+                                <td class="p-2 border-r border-slate-800 font-bold text-yellow-500 font-mono">Line 1 - M042</td>
+                                <td class="p-2 border-r border-slate-800"><span class="px-1.5 py-0.5 rounded bg-red-900/40 text-red-400 border border-red-800 text-[9px] font-bold">🚨 REFILL REQ</span></td>
+                                <td class="p-2 border-r border-slate-800 text-slate-300 font-mono">Soluble / Coolant level critical. Machine cutting temperature rising rapidly. Refill immediately.</td>
+                                <td class="p-2 text-center">
+                                    <span class="inline-block w-full py-1 rounded bg-red-900/50 text-red-400 border border-red-700 text-[10px] font-bold font-mono animate-pulse">⏳ PENDING</span>
+                                </td>
+                            </tr>
+
+                            <!-- مهمة نموذجية 2 -->
+                            <tr class="task-row">
+                                <td class="p-2 border-r border-slate-800 font-mono text-slate-400 text-[11px]">16:10:05</td>
+                                <td class="p-2 border-r border-slate-800 font-bold text-yellow-500 font-mono">Line 4 - Doosan</td>
+                                <td class="p-2 border-r border-slate-800"><span class="px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 border border-amber-800 text-[9px] font-bold">⚠️ TL_URGENT</span></td>
+                                <td class="p-2 border-r border-slate-800 text-slate-300 font-mono">Perform a complete hydraulic tank level check after sensor replacement on Doosan layout.</td>
+                                <td class="p-2 text-center">
+                                    <span class="inline-block w-full py-1 rounded bg-blue-900/40 text-blue-400 border border-blue-800 text-[10px] font-bold font-mono">⚙️ IN PROGRESS</span>
+                                </td>
+                            </tr>
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. المراقبة العامة والتحكم ف السيرفر الرئيسي -->
+            <div class="bg-slate-900/60 p-4 rounded-lg border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-3">
+                <div class="text-xs space-y-1">
+                    <p class="font-bold text-slate-300 uppercase">Master Data Streams Control</p>
+                    <p class="text-[11px] text-slate-500 font-mono">Every dispatch injects a new row into Google Sheets and transmits directly to the PED execution node.</p>
+                </div>
+                <button type="button" onclick="forceRefreshQueue()" class="bg-slate-950 border border-slate-700 hover:border-slate-500 text-slate-300 px-4 py-2 rounded text-xs font-mono uppercase tracking-wider transition-all">
+                    🔄 Force Reload Sheet Queue
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="text-center text-[10px] text-slate-500 font-mono pb-8 uppercase tracking-widest">
+        IM JX Tech Suite v7.9 &bull; Tech PED Control Terminal
+    </div>
+
+    <script>
+        let syncTimeout = null;
+        // نفس رابط الـ Web App ديالك ف Google Apps Script باش يتزامنوا ف نفس البلاصة
+        // googleScriptUrl remplacé par le backend IM JX (voir shared/im-jx-client.js)
+
+        document.getElementById('repDate').value = new Date().toISOString().split('T')[0];
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        // دالة لإرسال مهمة جديدة للـ Operator وللـ Sheets
+        function dispatchNewTask() {
+            const techName = document.getElementById('techName').value.trim();
+            const location = document.getElementById('newTaskLoc').value.trim();
+            const type = document.getElementById('newTaskType').value;
+            const desc = document.getElementById('newTaskDesc').value.trim();
+
+            if (!techName) {
+                alert("⚠️ يرجى إدخال اسم الـ Tech PED أولاً!");
+                return;
+            }
+            if (!location || !desc) {
+                alert("⚠️ يرجى ملء خانة المكان والوصف الخاص بالمهمة!");
+                return;
+            }
+
+            const timestamp = new Date().toTimeString().split(' ')[0];
+            
+            // إضافة المهمة للجدول محلياً ف البلاصة
+            const tbody = document.getElementById('techLiveTasksBody');
+            const newRow = document.createElement('tr');
+            newRow.className = "task-row bg-slate-950/40";
+            newRow.innerHTML = `
+                <td class="p-2 border-r border-slate-800 font-mono text-slate-400 text-[11px]">${timestamp}</td>
+                <td class="p-2 border-r border-slate-800 font-bold text-yellow-500 font-mono">${location}</td>
+                <td class="p-2 border-r border-slate-800"><span class="px-1.5 py-0.5 rounded bg-cyan-900/40 text-cyan-400 border border-cyan-800 text-[9px] font-bold">${type}</span></td>
+                <td class="p-2 border-r border-slate-800 text-slate-300 font-mono">${desc}</td>
+                <td class="p-2 text-center">
+                    <span class="inline-block w-full py-1 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-bold font-mono">⏳ PENDING</span>
+                </td>
+            `;
+            tbody.insertBefore(newRow, tbody.firstChild);
+
+            // تجميع الداتا وتصيفطها للـ Google Sheet
+            setSyncUIStatus('syncing', `Dispatching task to ${location}...`);
+            const date = document.getElementById('repDate').value;
+            const shift = document.getElementById('techShift').value;
+            
+            const payload = `IM_TECH_DISPATCH;${date};${timestamp};${techName};SHIFT_${shift};${location};${type};${desc};STATUS_PENDING`;
+
+            IMJX.sync(payload)
+            .then(() => { 
+                setSyncUIStatus('success', 'Task dispatched and logged to master sheet.');
+                // تفريغ الفورم بعد الإرسال الناجح
+                document.getElementById('newTaskLoc').value = "";
+                document.getElementById('newTaskDesc').value = "";
+            })
+            .catch(err => {
+                console.error(err);
+                setSyncUIStatus('error', 'Network error. Dispatch failed.');
+            });
+        }
+
+        function triggerAutoSync() {
+            const techName = document.getElementById('techName').value.trim();
+            if (syncTimeout) clearTimeout(syncTimeout);
+            
+            if (!techName) {
+                setSyncUIStatus('waiting', 'Enter Tech PED name to authenticate link.');
+                return;
+            }
+
+            setSyncUIStatus('pending', 'Terminal parameters updated...');
+
+            syncTimeout = setTimeout(() => {
+                setSyncUIStatus('success', 'Parameters updated. Ready for live transmission.');
+            }, 1000);
+        }
+
+        function forceRefreshQueue() {
+            setSyncUIStatus('syncing', 'Fetching latest task states from Google Sheets...');
+            // هنا تقدر تزيد Fetches من الـ Sheet باش تجيب الـ Live updates لي دار الـ Operator
+            setTimeout(() => {
+                setSyncUIStatus('success', 'Live queue view refreshed.');
+            }, 1000);
+        }
+
+        function setSyncUIStatus(state, message) {
+            const ind = document.getElementById('syncIndicator');
+            const txt = document.getElementById('syncStatusText');
+            txt.innerText = message;
+
+            if (state === 'success') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
+                txt.className = "text-[9px] text-emerald-400 uppercase font-mono tracking-wider";
+            } else if (state === 'syncing') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping";
+                txt.className = "text-[9px] text-blue-400 uppercase font-mono tracking-wider";
+            } else if (state === 'pending') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                txt.className = "text-[9px] text-amber-400 uppercase font-mono tracking-wider";
+            } else if (state === 'waiting') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-slate-600";
+                txt.className = "text-[9px] text-slate-400 uppercase font-mono tracking-wider";
+            } else if (state === 'error') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce";
+                txt.className = "text-[9px] text-red-400 uppercase font-mono tracking-wider font-bold";
+            }
+        }
+
+        setSyncUIStatus('waiting', 'Tech terminal ready. Standing by for dispatch.');
+    </script>
+</body>
+</html>

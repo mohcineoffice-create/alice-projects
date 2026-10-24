@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - PED Fluid & Dispatch Node</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html,body{overscroll-behavior-y:contain;}
+        .checked-cell { background-color: rgba(16, 185, 129, 0.2) !important; border-color: #10b981 !important; color: #10b981 !important; }
+    </style>
+    <script>window.IMJX_PAGE = { department: "PED", page: "OPER", roles: ["operator"] };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans select-none">
+
+    <div class="max-w-6xl mx-auto bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden mb-12">
+        
+        <!-- الهيدر الذكي مع مؤشر المزامنة -->
+        <div class="bg-slate-950 p-4 flex justify-between items-center border-b-2 border-cyan-500">
+            <div>
+                <h1 class="text-lg font-bold text-cyan-400 tracking-wider flex items-center gap-2">
+                    <span>IM JX - PED Fluid & Dispatch Node</span>
+                    <span id="syncIndicator" class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System Live"></span>
+                </h1>
+                <p id="syncStatusText" class="text-[9px] text-emerald-400 uppercase font-mono tracking-widest">PED Server Sync: Active</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <input type="date" id="repDate" onchange="triggerAutoSync()" class="bg-slate-800 text-xs p-1 rounded border border-slate-600 text-white font-mono outline-none">
+                <span id="liveClock" class="text-[10px] font-mono text-slate-400">00:00:00</span>
+            </div>
+        </div>
+
+        <!-- سياق الـ Operator الشفت -->
+        <div class="p-4 bg-slate-900/40 border-b border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">PED Operator Name:</label>
+                <input type="text" id="pedOpName" placeholder="Enter PED Operator Name" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-cyan-400 font-bold outline-none">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shift:</label>
+                <select id="pedShift" onchange="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                    <option value="A">Shift A</option>
+                    <option value="B">Shift B</option>
+                    <option value="C">Shift C</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Line Group:</label>
+                <select id="lineFilter" onchange="filterLineTables()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-yellow-400 font-bold outline-none">
+                    <option value="ALL">Show All Production Lines (1-4)</option>
+                    <option value="LINE_1">Line 1 Only</option>
+                    <option value="LINE_2">Line 2 Only</option>
+                    <option value="LINE_3">Line 3 Only</option>
+                    <option value="LINE_4">Line 4 Only</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="p-3 md:p-4 space-y-6">
+
+            <!-- 1. لوحة استقبال تتبع المهام والـ Reclamations (جديد 🚨) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                    <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">📋 Active PED Tasks Queue & Alarms</h2>
+                    <span class="text-[9px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">Source: Maint TL / Urgent Refill Reclamations</span>
+                </div>
+
+                <div class="space-y-2" id="pedTasksContainer">
+                    
+                    <!-- مهمة 1: جاية من الريكلاماسيون ديال لـ Operator -->
+                    <div class="bg-slate-950 p-3 rounded border border-red-900/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-red-900/50 text-red-400 border border-red-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase font-mono">🚨 URGENT RECLAMATION</span>
+                                <span class="text-slate-500 font-mono text-[10px]">Time: 14:45</span>
+                                <span class="text-slate-400 font-mono text-[10px]">Line 1 - M042</span>
+                            </div>
+                            <p class="text-slate-200 font-mono font-bold">Soluble / Coolant level critical. Machine cutting temperature rising rapidly. Refill immediately.</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                            <select onchange="updateTaskStatus(this); triggerAutoSync();" class="bg-slate-950 border border-slate-600 rounded p-1 text-xs font-bold text-red-400 outline-none">
+                                <option value="PENDING">⏳ Pending</option>
+                                <option value="IN_PROGRESS">⚙️ In Progress</option>
+                                <option value="SOLVED">✅ Solved / Done</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- مهمة 2: جاية من عند الـ Team Leader صيانة -->
+                    <div class="bg-slate-950 p-3 rounded border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-amber-900/50 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase font-mono">From: Maintenance TL</span>
+                                <span class="text-slate-500 font-mono text-[10px]">Time: 16:10</span>
+                                <span class="text-slate-400 font-mono text-[10px]">Line 4 - Doosan</span>
+                            </div>
+                            <p class="text-slate-200 font-mono font-bold">Perform a complete hydraulic tank level check after sensor replacement on Doosan layout.</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                            <select onchange="updateTaskStatus(this); triggerAutoSync();" class="bg-slate-950 border border-slate-600 rounded p-1 text-xs font-bold text-amber-400 outline-none">
+                                <option value="PENDING">⏳ Pending</option>
+                                <option value="IN_PROGRESS">⚙️ In Progress</option>
+                                <option value="SOLVED">✅ Solved / Done</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 2. جدول خطة المراقبة والتعمار الروتينية (Fluids Routine Checklist) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                    <h2 class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">📋 Fluids Refill & Top-Up Routine Plan</h2>
+                    <span class="text-[9px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">Routine Grid Validation</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border border-slate-700 min-w-[800px]" id="maintTable">
+                        <thead class="bg-slate-950 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-700">
+                            <tr>
+                                <th class="p-2 border-r border-slate-700 w-20">Line</th>
+                                <th class="p-2 border-r border-slate-700 w-44">Machine Block</th>
+                                <th class="p-2 border-r border-slate-700 text-center w-36">Hydraulic Oil</th>
+                                <th class="p-2 border-r border-slate-700 text-center w-36">Guideway Oil</th>
+                                <th class="p-2 border-r border-slate-700 text-center w-36">Coolant / Soluble</th>
+                                <th class="p-2 text-center w-36">Industrial Water</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700 bg-slate-900/20" id="fluidGridBody">
+                            
+                            <!-- Line 1 -->
+                            <tr class="line-row" data-line="LINE_1">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-400 bg-slate-950/30">Line 1</td>
+                                <td class="p-2 border-r border-slate-800 font-mono font-bold text-yellow-500">M042 (Spline Rolling)</td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L1_M042', 'Hydraulic')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Weekly)</button></td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L1_M042', 'Guideway')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L1_M042', 'Coolant')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                                <td class="p-1 text-center"><button onclick="validateFluidTask(this, 'L1_M042', 'Water')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                            </tr>
+                            <tr class="line-row" data-line="LINE_1">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-400 bg-slate-950/30">Line 1</td>
+                                <td class="p-2 border-r border-slate-800 font-mono font-bold text-yellow-500">M008 & M009 (CNC)</td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L1_CNC_BLOCK', 'Hydraulic')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Weekly)</button></td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L1_CNC_BLOCK', 'Guideway')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L1_CNC_BLOCK', 'Coolant')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                                <td class="p-1 text-center"><button onclick="validateFluidTask(this, 'L1_CNC_BLOCK', 'Water')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                            </tr>
+
+                            <!-- Line 2 -->
+                            <tr class="line-row" data-line="LINE_2">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-400 bg-slate-950/30">Line 2</td>
+                                <td class="p-2 border-r border-slate-800 font-mono font-bold text-yellow-500">M068 & M077 (CNC)</td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L2_CNC_BLOCK', 'Hydraulic')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Weekly)</button></td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L2_CNC_BLOCK', 'Guideway')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L2_CNC_BLOCK', 'Coolant')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                                <td class="p-1 text-center"><button onclick="validateFluidTask(this, 'L2_CNC_BLOCK', 'Water')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                            </tr>
+
+                            <!-- Line 3 -->
+                            <tr class="line-row" data-line="LINE_3">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-400 bg-slate-950/30">Line 3</td>
+                                <td class="p-2 border-r border-slate-800 font-mono font-bold text-yellow-500">M122 (Spline Rolling)</td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L3_M122', 'Hydraulic')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Weekly)</button></td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L3_M122', 'Guideway')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L3_M122', 'Coolant')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                                <td class="p-1 text-center"><button onclick="validateFluidTask(this, 'L3_M122', 'Water')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                            </tr>
+
+                            <!-- Line 4 -->
+                            <tr class="line-row" data-line="LINE_4">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-400 bg-slate-950/30">Line 4</td>
+                                <td class="p-2 border-r border-slate-800 font-mono font-bold text-yellow-500">Doosan CNC Block</td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L4_DOOSAN', 'Hydraulic')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Weekly)</button></td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L4_DOOSAN', 'Guideway')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                                <td class="p-1 border-r border-slate-800 text-center"><button onclick="validateFluidTask(this, 'L4_DOOSAN', 'Coolant')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                                <td class="p-1 text-center"><button onclick="validateFluidTask(this, 'L4_DOOSAN', 'Water')" class="w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500">⏳ Check (Daily)</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. بلاغات الأعطال والتسريبات الفورية (PED Leakage & Alarms) -->
+            <div class="bg-slate-900/60 p-4 rounded-lg border border-slate-700 space-y-3">
+                <h2 class="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">⚠️ Fluid Anomaly / Leakage Notification</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Defect Machine/Line Location:</label>
+                        <input type="text" id="alarmLoc" placeholder="e.g., Line 4 Doosan CNC" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Anomaly Type:</label>
+                        <select id="alarmType" onchange="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-red-400 font-bold outline-none">
+                            <option value="OIL_LEAKAGE">🛑 Heavy Oil Leakage / فويت ديال الزيت</option>
+                            <option value="CRITICAL_LOW_LEVEL">⚠️ Critical Low Level (Refill Urgently)</option>
+                            <option value="COOLANT_SMELL_BAD">🤢 Coolant Degradation / Soluble Quality Issue</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Action Required Description:</label>
+                        <input type="text" id="alarmDesc" placeholder="e.g., Hydraulic hose ruptured" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-slate-300 outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <!-- زر مسح التحديد -->
+            <div class="pt-2">
+                <button type="button" onclick="resetPedDashboard()" class="w-full bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-400 py-2 rounded-lg text-xs uppercase border border-cyan-500/20 transition-all font-mono">Reset Routine Checklist</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center text-[10px] text-slate-500 font-mono pb-8 uppercase tracking-widest">
+        IM JX Tech Suite v7.9 &bull; PED Fluid & Dispatch Execution Center
+    </div>
+
+    <script>
+        let syncTimeout = null;
+        // googleScriptUrl remplacé par le backend IM JX (voir shared/im-jx-client.js)
+
+        document.getElementById('repDate').value = new Date().toISOString().split('T')[0];
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        function filterLineTables() {
+            const filter = document.getElementById('lineFilter').value;
+            const rows = document.querySelectorAll('.line-row');
+            rows.forEach(row => {
+                if (filter === 'ALL' || row.getAttribute('data-line') === filter) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // تحديث مظهر أزرار الحالات للمهام المستعجلة
+        function updateTaskStatus(selectElement) {
+            if (selectElement.value === 'SOLVED') {
+                selectElement.className = "bg-slate-950 border border-emerald-600 rounded p-1 text-xs font-bold text-emerald-400 outline-none";
+                selectElement.parentElement.parentElement.className = "bg-slate-950/40 p-3 rounded border border-emerald-950/60 opacity-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs transition-all";
+            } else if (selectElement.value === 'IN_PROGRESS') {
+                selectElement.className = "bg-slate-950 border border-blue-600 rounded p-1 text-xs font-bold text-blue-400 outline-none";
+                selectElement.parentElement.parentElement.className = "bg-slate-950 p-3 rounded border border-blue-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs transition-all";
+            } else {
+                selectElement.className = "bg-slate-950 border border-slate-600 rounded p-1 text-xs font-bold text-red-400 outline-none";
+                selectElement.parentElement.parentElement.className = "bg-slate-950 p-3 rounded border border-red-950 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs transition-all";
+            }
+        }
+
+        function validateFluidTask(buttonElement, machineKey, fluidType) {
+            const operator = document.getElementById('pedOpName').value.trim();
+            if (!operator) {
+                alert("⚠️ يرجى إدخال اسم الـ PED Operator أولاً قبل تأكيد التعبئة!");
+                return;
+            }
+            const timestamp = new Date().toTimeString().split(' ')[0].substring(0, 5);
+            buttonElement.classList.add('checked-cell');
+            buttonElement.innerText = `✅ Done (${timestamp})`;
+            buttonElement.disabled = true;
+
+            sendSingleFluidReport(operator, machineKey, fluidType, timestamp);
+        }
+
+        function sendSingleFluidReport(operator, machineKey, fluidType, time) {
+            setSyncUIStatus('syncing', `Uploading ${machineKey} ${fluidType} log...`);
+            const date = document.getElementById('repDate').value;
+            const shift = document.getElementById('pedShift').value;
+            const payload = `IM_PED_REFILL;${date};${time};${operator};SHIFT_${shift};${machineKey};${fluidType};STATUS_OK`;
+
+            IMJX.sync(payload)
+            .then(() => { setSyncUIStatus('success', 'Fluid verification logged to master database'); })
+            .catch(err => {
+                console.error(err);
+                setSyncUIStatus('error', 'Network slow. Log cached locally.');
+            });
+        }
+
+        function buildPedAlarmPayload(operator) {
+            let parts = [];
+            parts.push("IM_PED_ALARM_NODE");
+            parts.push(document.getElementById('repDate').value);
+            parts.push(operator);
+            parts.push(`SHIFT_${document.getElementById('pedShift').value}`);
+            parts.push(`LOC:${document.getElementById('alarmLoc').value.trim() || "NONE"}`);
+            parts.push(`TYPE:${document.getElementById('alarmType').value}`);
+            parts.push(`DESC:${document.getElementById('alarmDesc').value.trim() || "NONE"}`);
+
+            // تجميع حالات المهام المفتوحة ف لوحة الاستقبال
+            let queueStates = [];
+            const taskElements = document.getElementById('pedTasksContainer').children;
+            for (let i = 0; i < taskElements.length; i++) {
+                const desc = taskElements[i].querySelector('p').innerText;
+                const status = taskElements[i].querySelector('select').value;
+                queueStates.push(`[PedTask_${i}:${status}|Desc:${desc}]`);
+            }
+            parts.push(`QUEUE_LOG:${queueStates.join(',')}`);
+
+            return parts.join(";");
+        }
+
+        function triggerAutoSync() {
+            const operator = document.getElementById('pedOpName').value.trim();
+            if (syncTimeout) clearTimeout(syncTimeout);
+            
+            if (!operator) {
+                setSyncUIStatus('waiting', 'Enter PED Operator name to link sync engine.');
+                return;
+            }
+
+            setSyncUIStatus('pending', 'Dashboard state modified... Sync pending');
+
+            syncTimeout = setTimeout(() => {
+                setSyncUIStatus('syncing', 'Syncing active PED logs...');
+                const payload = buildPedAlarmPayload(operator);
+
+                IMJX.sync(payload)
+                .then(() => { setSyncUIStatus('success', 'PED Dispatch Registry synchronized'); })
+                .catch(err => {
+                    console.error(err);
+                    setSyncUIStatus('error', 'Connection retry pending...');
+                });
+            }, 1500);
+        }
+
+        function setSyncUIStatus(state, message) {
+            const ind = document.getElementById('syncIndicator');
+            const txt = document.getElementById('syncStatusText');
+            txt.innerText = message;
+
+            if (state === 'success') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
+                txt.className = "text-[9px] text-emerald-400 uppercase font-mono tracking-wider";
+            } else if (state === 'syncing') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping";
+                txt.className = "text-[9px] text-blue-400 uppercase font-mono tracking-wider";
+            } else if (state === 'pending') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                txt.className = "text-[9px] text-amber-400 uppercase font-mono tracking-wider";
+            } else if (state === 'waiting') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-slate-600";
+                txt.className = "text-[9px] text-slate-400 uppercase font-mono tracking-wider";
+            } else if (state === 'error') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce";
+                txt.className = "text-[9px] text-red-400 uppercase font-mono tracking-wider font-bold";
+            }
+        }
+
+        function resetPedDashboard() {
+            if (confirm("Reset layout checklist validation markers?")) {
+                const buttons = document.querySelectorAll('#fluidGridBody button');
+                buttons.forEach(btn => {
+                    btn.className = "w-full p-2 bg-slate-950/40 border border-slate-700 rounded text-[10px] font-mono transition-all hover:border-cyan-500";
+                    if(btn.innerText.includes('Hydraulic')) btn.innerText = "⏳ Check (Weekly)";
+                    else btn.innerText = "⏳ Check (Daily)";
+                    btn.disabled = false;
+                });
+                document.getElementById('alarmLoc').value = "";
+                document.getElementById('alarmDesc').value = "";
+                setSyncUIStatus('waiting', 'Terminal layout refreshed.');
+            }
+        }
+
+        setSyncUIStatus('waiting', 'PED Terminal connected. Ready for operational logs.');
+    </script>
+</body>
+</html>

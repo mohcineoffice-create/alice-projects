@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>IM JX - Admin Command Center</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html,body{overscroll-behavior-y:contain;}
+  .pulse-dot{animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-thumb{background:#334155;border-radius:4px;}
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans p-3 md:p-5">
+
+<div class="max-w-7xl mx-auto space-y-4">
+  <!-- Header -->
+  <div class="bg-slate-900 rounded-xl border border-slate-700 p-4 flex justify-between items-center">
+    <div>
+      <h1 class="text-xl font-bold text-blue-400 tracking-wider flex items-center gap-2">
+        IM JX — Admin Command Center
+        <span id="wsDot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+      </h1>
+      <p class="text-[10px] text-slate-400 uppercase font-mono">Supervision temps réel · PROD / PED / MNT / QUALITY / METROLOGIE / METALLURGIE</p>
+    </div>
+    <div class="text-right text-[10px] font-mono text-slate-400">
+      <div id="clock">--:--:--</div>
+      <div><a href="/dev-console.html" class="text-blue-400 hover:underline">🛠️ Console Développeur</a></div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-2 text-xs font-bold">
+    <button id="tabBtnLive" onclick="showAdminTab('tabLive')" class="px-4 py-2 rounded-t-lg bg-slate-900 text-blue-400 border-b-2 border-blue-500">🌐 Flux Temps Réel</button>
+    <button id="tabBtnCommand" onclick="showAdminTab('tabCommand')" class="px-4 py-2 rounded-t-lg bg-slate-900 text-slate-400 border-b-2 border-transparent">🏭 Command Center</button>
+    <button id="tabBtnAnalysis" onclick="showAdminTab('tabAnalysis')" class="px-4 py-2 rounded-t-lg bg-slate-900 text-slate-400 border-b-2 border-transparent">🧩 Analyse personnalisée</button>
+  </div>
+
+  <div id="tabLive" class="space-y-4">
+  <!-- KPI strip -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+      <p class="text-[10px] text-slate-400 uppercase">Événements live</p>
+      <p class="text-2xl font-bold text-blue-400" id="kpiEvents">0</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+      <p class="text-[10px] text-slate-400 uppercase">Alarmes ouvertes</p>
+      <p class="text-2xl font-bold text-red-400" id="kpiAlarms">0</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+      <p class="text-[10px] text-slate-400 uppercase">Postes connectés</p>
+      <p class="text-2xl font-bold text-emerald-400" id="kpiOnline">—</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
+      <p class="text-[10px] text-slate-400 uppercase">Dernière commande</p>
+      <p class="text-xs font-mono text-amber-400 truncate" id="kpiLastCmd">—</p>
+    </div>
+  </div>
+
+  <!-- Gestion des utilisateurs -->
+  <div class="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+    <div class="p-3 border-b border-slate-700 flex justify-between items-center cursor-pointer" onclick="toggleUsersPanel()">
+      <h2 class="text-xs font-bold text-emerald-400 uppercase">👤 Gestion des utilisateurs</h2>
+      <span id="usersToggleIcon" class="text-slate-400 text-xs">▾</span>
+    </div>
+    <div id="usersPanel" class="p-3 space-y-3">
+      <div id="usersTableWrap" class="overflow-x-auto">
+        <table class="w-full text-xs font-mono">
+          <thead>
+            <tr class="text-left text-slate-400 uppercase text-[10px] border-b border-slate-700">
+              <th class="p-1.5">Nom complet</th>
+              <th class="p-1.5">Identifiant</th>
+              <th class="p-1.5">Département</th>
+              <th class="p-1.5">Rôle</th>
+              <th class="p-1.5">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="border-t border-slate-700 pt-3 grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
+        <div class="col-span-2 md:col-span-1">
+          <label class="block text-[9px] text-slate-400 uppercase mb-1">Nom complet</label>
+          <input id="newFullName" type="text" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs outline-none">
+        </div>
+        <div>
+          <label class="block text-[9px] text-slate-400 uppercase mb-1">Identifiant</label>
+          <input id="newUsername" type="text" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs outline-none">
+        </div>
+        <div>
+          <label class="block text-[9px] text-slate-400 uppercase mb-1">Mot de passe</label>
+          <input id="newPassword" type="text" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs outline-none">
+        </div>
+        <div>
+          <label class="block text-[9px] text-slate-400 uppercase mb-1">Département</label>
+          <select id="newDept" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs outline-none">
+            <option value="PROD">PROD</option>
+            <option value="PED">PED</option>
+            <option value="MNT">MNT</option>
+            <option value="QUALITY">QUALITY</option>
+            <option value="METROLOGIE">METROLOGIE</option>
+            <option value="METALLURGIE">METALLURGIE</option>
+            <option value="ALL">ALL (admin)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[9px] text-slate-400 uppercase mb-1">Rôle</label>
+          <select id="newRole" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs outline-none">
+            <option value="operator">Opérateur</option>
+            <option value="technician">Technicien</option>
+            <option value="tl">Team Leader</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="col-span-2 md:col-span-1">
+          <button onclick="createUser()" class="w-full bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 font-bold py-2 rounded text-xs uppercase border border-emerald-500/30 transition-all">+ Ajouter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <!-- Live feed (2/3) -->
+    <div class="lg:col-span-2 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden flex flex-col" style="height:60vh;">
+      <div class="p-3 border-b border-slate-700 flex justify-between items-center">
+        <h2 class="text-xs font-bold text-blue-400 uppercase">Flux temps réel — tous départements</h2>
+        <div class="flex gap-1 text-[10px]">
+          <button onclick="setFilter('ALL')" class="filter-btn px-2 py-1 rounded bg-slate-800 border border-slate-600" data-f="ALL">Tous</button>
+          <button onclick="setFilter('PROD')" class="filter-btn px-2 py-1 rounded bg-slate-800 border border-slate-600" data-f="PROD">PROD</button>
+          <button onclick="setFilter('PED')" class="filter-btn px-2 py-1 rounded bg-slate-800 border border-slate-600" data-f="PED">PED</button>
+          <button onclick="setFilter('MNT')" class="filter-btn px-2 py-1 rounded bg-slate-800 border border-slate-600" data-f="MNT">MNT</button>
+          <button onclick="setFilter('QUALITY')" class="filter-btn px-2 py-1 rounded bg-slate-800 border border-slate-600" data-f="QUALITY">QUALITY</button>
+          <button onclick="setFilter('METROLOGIE')" class="filter-btn px-2 py-1 rounded bg-slate-800 border border-slate-600" data-f="METROLOGIE">METROLOGIE</button>
+          <button onclick="setFilter('METALLURGIE')" class="filter-btn px-2 py-1 rounded bg-slate-800 border border-slate-600" data-f="METALLURGIE">METALLURGIE</button>
+        </div>
+      </div>
+      <div id="feed" class="flex-1 overflow-y-auto divide-y divide-slate-800 text-xs font-mono"></div>
+    </div>
+
+    <!-- Right column: alarms + command panel -->
+    <div class="space-y-4">
+      <div class="bg-slate-900 border border-red-900/50 rounded-xl overflow-hidden flex flex-col" style="height:28vh;">
+        <div class="p-3 border-b border-slate-700">
+          <h2 class="text-xs font-bold text-red-400 uppercase">🚨 Alarmes & réclamations</h2>
+        </div>
+        <div id="alarms" class="flex-1 overflow-y-auto divide-y divide-slate-800 text-xs font-mono"></div>
+      </div>
+
+      <div class="bg-slate-900 border border-amber-900/50 rounded-xl p-3 space-y-2">
+        <h2 class="text-xs font-bold text-amber-400 uppercase mb-1">📢 Envoyer une commande</h2>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[9px] text-slate-400 uppercase mb-1">Département cible</label>
+            <select id="cmdDept" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs outline-none">
+              <option value="ALL">Tous</option>
+              <option value="PROD">PROD</option>
+              <option value="PED">PED</option>
+              <option value="MNT">MNT</option>
+              <option value="QUALITY">QUALITY</option>
+              <option value="METROLOGIE">METROLOGIE</option>
+              <option value="METALLURGIE">METALLURGIE</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[9px] text-slate-400 uppercase mb-1">Rôle cible</label>
+            <select id="cmdRole" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs outline-none">
+              <option value="ALL">Tous</option>
+              <option value="operator">Opérateur</option>
+              <option value="technician">Technicien</option>
+              <option value="tl">Team Leader</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[9px] text-slate-400 uppercase mb-1">Priorité</label>
+          <select id="cmdPriority" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs outline-none">
+            <option value="normal">Normale</option>
+            <option value="urgent">Urgente</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[9px] text-slate-400 uppercase mb-1">Message</label>
+          <textarea id="cmdMessage" rows="3" class="w-full p-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs outline-none" placeholder="Instruction à envoyer..."></textarea>
+        </div>
+        <button onclick="sendCommand()" id="sendBtn" class="w-full bg-amber-600/20 hover:bg-amber-600/40 text-amber-400 font-bold py-2 rounded text-xs uppercase border border-amber-500/30 transition-all">Envoyer la commande</button>
+      </div>
+    </div>
+  </div>
+  </div>
+  <!-- /tabLive -->
+
+  <div id="tabCommand" class="space-y-4" style="display:none;">
+    <div class="bg-slate-900 border border-slate-700 rounded-xl p-3 flex flex-wrap justify-between items-center gap-2">
+      <div class="flex items-center gap-2 text-xs">
+        <label class="text-slate-400 uppercase text-[10px]">Date</label>
+        <input type="date" id="ccDate" onchange="loadCommandCenter()" class="bg-slate-800 border border-slate-600 rounded p-1 text-white font-mono text-xs outline-none">
+      </div>
+      <div class="flex gap-1">
+        <button onclick="exportReport('production_live','xlsx')" class="text-[10px] bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30">⬇️ Production (Excel)</button>
+        <button onclick="exportReport('machines','xlsx')" class="text-[10px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded border border-blue-500/30">⬇️ Machines (Excel)</button>
+        <button onclick="exportReport('maintenance','pdf')" class="text-[10px] bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-400 px-2 py-1 rounded border border-cyan-500/30">⬇️ Maintenance (PDF)</button>
+        <button onclick="exportReport('traceability','docx')" class="text-[10px] bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 px-2 py-1 rounded border border-purple-500/30">⬇️ Traçabilité (Word)</button>
+        <a href="/machines-admin.html" class="text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded">🏷️ Gérer les machines</a>
+      </div>
+    </div>
+
+    <!-- KPI Command Center -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3" id="ccKpis"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Production live -->
+      <div class="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+        <div class="p-3 border-b border-slate-700"><h2 class="text-xs font-bold text-blue-400 uppercase">Production en direct — PROD</h2></div>
+        <div class="overflow-x-auto" style="max-height:40vh;">
+          <table class="w-full text-left text-[11px] min-w-[600px]">
+            <thead class="bg-slate-950 text-[9px] uppercase text-slate-400 border-b border-slate-700 sticky top-0">
+              <tr><th class="p-2">Ligne</th><th class="p-2">Opérateur</th><th class="p-2">Target</th><th class="p-2">Produit</th><th class="p-2">Rejet</th><th class="p-2">Perf %</th><th class="p-2">Statut</th></tr>
+            </thead>
+            <tbody id="ccProdBody" class="divide-y divide-slate-800"></tbody>
+          </table>
+        </div>
+        <p class="text-[9px] text-slate-500 p-2 border-t border-slate-800">Calculé à partir des données réellement soumises par les pages PROD (Target/Actual/Reject). PED/MNT ne suivent pas de quantités de production — non inclus ici.</p>
+      </div>
+
+      <!-- Machine monitoring -->
+      <div class="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+        <div class="p-3 border-b border-slate-700"><h2 class="text-xs font-bold text-cyan-400 uppercase">Monitoring Machines</h2></div>
+        <div id="ccMachines" class="p-3 grid grid-cols-2 md:grid-cols-3 gap-2" style="max-height:40vh;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Maintenance dashboard -->
+      <div class="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+        <div class="p-3 border-b border-slate-700"><h2 class="text-xs font-bold text-amber-400 uppercase">Maintenance</h2></div>
+        <div id="ccMaintKpis" class="grid grid-cols-3 gap-2 p-3 text-center text-xs"></div>
+        <div id="ccMaintList" class="p-3 space-y-1 text-[11px]" style="max-height:28vh;overflow-y:auto;"></div>
+      </div>
+
+      <!-- Traçabilité -->
+      <div class="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+        <div class="p-3 border-b border-slate-700 flex justify-between items-center">
+          <h2 class="text-xs font-bold text-purple-400 uppercase">Traçabilité complète (audit — rien n'est supprimé)</h2>
+        </div>
+        <div class="p-2 border-b border-slate-800 flex gap-2">
+          <select id="ccTraceDept" onchange="loadTraceability()" class="bg-slate-800 border border-slate-600 rounded text-[10px] p-1 outline-none">
+            <option value="">Tous départements</option>
+            <option value="PROD">PROD</option><option value="PED">PED</option><option value="MNT">MNT</option>
+            <option value="QUALITY">QUALITY</option><option value="METROLOGIE">METROLOGIE</option><option value="METALLURGIE">METALLURGIE</option>
+          </select>
+          <input id="ccTraceSearch" placeholder="Rechercher..." oninput="debouncedTraceSearch()" class="flex-1 bg-slate-800 border border-slate-600 rounded text-[10px] p-1 text-white outline-none">
+        </div>
+        <div id="ccTraceList" class="p-2 space-y-1 text-[10px] font-mono" style="max-height:32vh;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <div class="bg-slate-900 border border-amber-900/40 rounded-xl p-3 text-[10px] text-slate-400 leading-relaxed">
+      ⚠️ <b>Limites actuelles (transparence) :</b> Numéro de pièce, cause racine et action corrective ne sont pas
+      encore saisis par les pages existantes, donc pas affichés ici (aucune donnée inventée). Performance par
+      process nommé (CNC/Spline/Grooving...), vues Shift A/B/C dédiées et graphiques horaires/hebdo/mensuels
+      sont calculables avec l'historique déjà stocké — prochaine itération si besoin.
+    </div>
+  </div>
+  <!-- /tabCommand -->
+
+  <div id="tabAnalysis" class="space-y-4" style="display:none;">
+    <div class="bg-slate-900 border border-slate-700 rounded-xl p-3 flex flex-wrap justify-between items-center gap-2">
+      <div class="flex items-center gap-2 text-xs flex-wrap">
+        <label class="text-slate-400 uppercase text-[10px]">Script</label>
+        <select id="analysisScriptSelect" class="bg-slate-800 border border-slate-600 rounded p-1 text-white text-xs outline-none min-w-[180px]"></select>
+        <label class="text-slate-400 uppercase text-[10px]">Date</label>
+        <input type="date" id="analysisDate" class="bg-slate-800 border border-slate-600 rounded p-1 text-white font-mono text-xs outline-none">
+        <button onclick="runAnalysisScript()" class="text-[10px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-3 py-1.5 rounded border border-blue-500/30 font-bold">▶️ Exécuter</button>
+      </div>
+      <p class="text-[9px] text-slate-500">Scripts ajoutés dans <code>backend/app/analysis_scripts/</code> — aucun redémarrage de page requise, ils apparaissent ici automatiquement.</p>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+      <div class="p-3 border-b border-slate-700 flex justify-between items-center">
+        <h2 class="text-xs font-bold text-blue-400 uppercase" id="analysisResultTitle">Résultat</h2>
+        <span id="analysisStatus" class="text-[10px] text-slate-500"></span>
+      </div>
+      <div id="analysisResult" class="p-3">
+        <p class="text-[11px] text-slate-500">Choisis un script puis clique sur Exécuter.</p>
+      </div>
+    </div>
+  </div>
+  <!-- /tabAnalysis -->
+</div>
+
+<script src="/shared/im-jx-client.js"></script>
+<script>
+window.IMJX_PAGE = { department: "ALL", roles: ["admin"], page: "ADMIN" };
+
+let session, ws;
+let eventCount = 0, alarmCount = 0;
+let currentFilter = "ALL";
+
+function fmtTime(iso) {
+  try { return new Date(iso).toLocaleTimeString("fr-FR"); } catch (e) { return iso; }
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll(".filter-btn").forEach(b => {
+    b.classList.toggle("border-blue-500", b.dataset.f === f);
+    b.classList.toggle("text-blue-400", b.dataset.f === f);
+  });
+  loadFeed();
+}
+
+function rowColor(dept) {
+  return { PROD: "text-blue-400", PED: "text-purple-400", MNT: "text-orange-400", QUALITY: "text-emerald-400", METROLOGIE: "text-cyan-400", METALLURGIE: "text-amber-400" }[dept] || "text-slate-400";
+}
+
+function prependFeedRow(evt) {
+  const feed = document.getElementById("feed");
+  if (currentFilter !== "ALL" && evt.department !== currentFilter) return;
+  const row = document.createElement("div");
+  row.className = "p-2 hover:bg-slate-800/50";
+  row.innerHTML = `<span class="text-slate-500">${fmtTime(evt.timestamp)}</span> <span class="font-bold ${rowColor(evt.department)}">[${evt.department}/${evt.page || ''}]</span> <span class="text-slate-300">${evt.operator || ''}</span> <span class="text-slate-500">— ${(evt.raw || '').slice(0,140)}</span>`;
+  feed.prepend(row);
+  while (feed.children.length > 300) feed.removeChild(feed.lastChild);
+  eventCount++;
+  document.getElementById("kpiEvents").textContent = eventCount;
+}
+
+function prependAlarmRow(evt) {
+  const box = document.getElementById("alarms");
+  const row = document.createElement("div");
+  row.className = "p-2 hover:bg-slate-800/50";
+  row.innerHTML = `<div class="text-red-400 font-bold">${fmtTime(evt.timestamp)} · ${evt.department} · ${evt.operator || ''}</div><div class="text-slate-300">${(evt.raw || evt.message || '').slice(0,160)}</div>`;
+  box.prepend(row);
+  alarmCount++;
+  document.getElementById("kpiAlarms").textContent = alarmCount;
+}
+
+async function loadFeed() {
+  const res = await fetch("/api/sync/latest?limit=150", { headers: IMJX.authHeaders(session) });
+  if (!res.ok) return;
+  const rows = await res.json();
+  document.getElementById("feed").innerHTML = "";
+  rows.filter(r => currentFilter === "ALL" || r.department === currentFilter)
+      .forEach(r => prependFeedRowStatic(r));
+}
+function prependFeedRowStatic(evt) {
+  const feed = document.getElementById("feed");
+  const row = document.createElement("div");
+  row.className = "p-2 hover:bg-slate-800/50";
+  row.innerHTML = `<span class="text-slate-500">${fmtTime(evt.timestamp)}</span> <span class="font-bold ${rowColor(evt.department)}">[${evt.department}/${evt.page || ''}]</span> <span class="text-slate-300">${evt.operator || ''}</span> <span class="text-slate-500">— ${(evt.raw || '').slice(0,140)}</span>`;
+  feed.appendChild(row);
+}
+
+async function loadAlarms() {
+  const res = await fetch("/api/reclamations?limit=50", { headers: IMJX.authHeaders(session) });
+  if (!res.ok) return;
+  const rows = await res.json();
+  document.getElementById("alarms").innerHTML = "";
+  alarmCount = rows.length;
+  document.getElementById("kpiAlarms").textContent = alarmCount;
+  rows.slice().reverse().forEach(r => prependAlarmRow(r));
+}
+
+async function sendCommand() {
+  const btn = document.getElementById("sendBtn");
+  btn.disabled = true; btn.textContent = "Envoi...";
+  const body = {
+    target_department: document.getElementById("cmdDept").value,
+    target_role: document.getElementById("cmdRole").value,
+    message: document.getElementById("cmdMessage").value.trim(),
+    priority: document.getElementById("cmdPriority").value,
+  };
+  if (!body.message) { alert("Écris un message avant d'envoyer."); btn.disabled = false; btn.textContent = "Envoyer la commande"; return; }
+  try {
+    const res = await fetch("/api/commands", { method: "POST", headers: IMJX.authHeaders(session), body: JSON.stringify(body) });
+    if (!res.ok) throw new Error("échec");
+    document.getElementById("kpiLastCmd").textContent = `${body.target_department}/${body.target_role}: ${body.message.slice(0,40)}`;
+    document.getElementById("cmdMessage").value = "";
+  } catch (e) {
+    alert("❌ Échec de l'envoi de la commande");
+  } finally {
+    btn.disabled = false; btn.textContent = "Envoyer la commande";
+  }
+}
+
+function toggleUsersPanel() {
+  const panel = document.getElementById("usersPanel");
+  const icon = document.getElementById("usersToggleIcon");
+  const hidden = panel.style.display === "none";
+  panel.style.display = hidden ? "block" : "none";
+  icon.textContent = hidden ? "▾" : "▸";
+}
+
+async function loadUsers() {
+  const res = await fetch("/api/users", { headers: IMJX.authHeaders(session) });
+  if (!res.ok) return;
+  const rows = await res.json();
+  const body = document.getElementById("usersTableBody");
+  body.innerHTML = "";
+  rows.forEach(u => {
+    const tr = document.createElement("tr");
+    tr.className = "border-b border-slate-800 hover:bg-slate-800/40";
+    tr.innerHTML = `
+      <td class="p-1.5 text-slate-200">${u.full_name}</td>
+      <td class="p-1.5 text-slate-400">${u.username}</td>
+      <td class="p-1.5 ${rowColor(u.department)}">${u.department}</td>
+      <td class="p-1.5 text-slate-300">${u.role}</td>
+      <td class="p-1.5 flex gap-2">
+        <button class="text-amber-400 hover:underline" onclick="resetUserPassword(${u.id}, '${u.username}')">Réinit. mdp</button>
+        <button class="text-red-400 hover:underline" onclick="deleteUser(${u.id}, '${u.username}')">Supprimer</button>
+      </td>`;
+    body.appendChild(tr);
+  });
+}
+
+async function createUser() {
+  const body = {
+    full_name: document.getElementById("newFullName").value.trim(),
+    username: document.getElementById("newUsername").value.trim(),
+    password: document.getElementById("newPassword").value,
+    department: document.getElementById("newDept").value,
+    role: document.getElementById("newRole").value,
+  };
+  if (!body.full_name || !body.username || !body.password) { alert("Remplis nom, identifiant et mot de passe."); return; }
+  const res = await fetch("/api/users", { method: "POST", headers: IMJX.authHeaders(session), body: JSON.stringify(body) });
+  if (!res.ok) { const err = await res.json().catch(() => ({})); alert("❌ " + (err.detail || "échec de création")); return; }
+  ["newFullName", "newUsername", "newPassword"].forEach(id => document.getElementById(id).value = "");
+  loadUsers();
+}
+
+async function resetUserPassword(id, username) {
+  const pwd = prompt(`Nouveau mot de passe pour ${username} :`);
+  if (!pwd) return;
+  const res = await fetch(`/api/users/${id}`, { method: "PUT", headers: IMJX.authHeaders(session), body: JSON.stringify({ password: pwd }) });
+  if (!res.ok) { alert("❌ échec de la réinitialisation"); return; }
+  alert("✅ Mot de passe mis à jour");
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Supprimer le compte ${username} ?`)) return;
+  const res = await fetch(`/api/users/${id}`, { method: "DELETE", headers: IMJX.authHeaders(session) });
+  if (!res.ok) { const err = await res.json().catch(() => ({})); alert("❌ " + (err.detail || "échec de suppression")); return; }
+  loadUsers();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  session = IMJX.requireAuth({ roles: ["admin"] });
+  if (!session) return;
+  setFilter("ALL");
+  loadFeed();
+  loadAlarms();
+  loadUsers();
+  document.getElementById("ccDate").value = new Date().toISOString().split("T")[0];
+  document.getElementById("analysisDate").value = new Date().toISOString().split("T")[0];
+  IMJX.connectWS((data) => {
+    document.getElementById("wsDot").className = "w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-dot";
+    if (data.type === "sync") prependFeedRow(data);
+    if (data.type === "reclamation" || data.type === "alarm") { prependAlarmRow(data); }
+    if (["sync","alarm","alarm_update","maintenance","maintenance_update"].includes(data.type) && document.getElementById("tabCommand").style.display !== "none") {
+      loadCommandCenter();
+    }
+  });
+  setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("fr-FR"); }, 1000);
+});
+
+// ---------- Command Center ----------
+
+function showAdminTab(tab) {
+  document.getElementById("tabLive").style.display = tab === "tabLive" ? "block" : "none";
+  document.getElementById("tabCommand").style.display = tab === "tabCommand" ? "block" : "none";
+  document.getElementById("tabAnalysis").style.display = tab === "tabAnalysis" ? "block" : "none";
+  document.getElementById("tabBtnLive").className = "px-4 py-2 rounded-t-lg bg-slate-900 border-b-2 " + (tab === "tabLive" ? "text-blue-400 border-blue-500" : "text-slate-400 border-transparent");
+  document.getElementById("tabBtnCommand").className = "px-4 py-2 rounded-t-lg bg-slate-900 border-b-2 " + (tab === "tabCommand" ? "text-blue-400 border-blue-500" : "text-slate-400 border-transparent");
+  document.getElementById("tabBtnAnalysis").className = "px-4 py-2 rounded-t-lg bg-slate-900 border-b-2 " + (tab === "tabAnalysis" ? "text-blue-400 border-blue-500" : "text-slate-400 border-transparent");
+  if (tab === "tabCommand") loadCommandCenter();
+  if (tab === "tabAnalysis") loadAnalysisScripts();
+}
+
+async function loadCommandCenter() {
+  const day = document.getElementById("ccDate").value;
+  const [kpis, prod, machines, maint] = await Promise.all([
+    fetch(`/api/analytics/kpis?day=${day}`, { headers: IMJX.authHeaders(session) }).then(r => r.json()),
+    fetch(`/api/analytics/production-live?day=${day}`, { headers: IMJX.authHeaders(session) }).then(r => r.json()),
+    fetch(`/api/machines`, { headers: IMJX.authHeaders(session) }).then(r => r.json()),
+    fetch(`/api/maintenance`, { headers: IMJX.authHeaders(session) }).then(r => r.json()),
+  ]);
+  renderCcKpis(kpis);
+  renderCcProd(prod);
+  renderCcMachines(machines);
+  renderCcMaintenance(maint);
+  loadTraceability();
+}
+
+// ---------- Analyse personnalisée (scripts de backend/app/analysis_scripts/) ----------
+
+async function loadAnalysisScripts() {
+  const select = document.getElementById("analysisScriptSelect");
+  const previouslySelected = select.value;
+  try {
+    const res = await fetch(`/api/analytics/custom`, { headers: IMJX.authHeaders(session) });
+    const data = await res.json();
+    const scripts = data.scripts || [];
+    if (!scripts.length) {
+      select.innerHTML = `<option value="">Aucun script enregistré</option>`;
+      return;
+    }
+    select.innerHTML = scripts.map(s => `<option value="${s}">${s}</option>`).join("");
+    if (scripts.includes(previouslySelected)) select.value = previouslySelected;
+  } catch (e) {
+    select.innerHTML = `<option value="">Erreur de chargement</option>`;
+  }
+}
+
+async function runAnalysisScript() {
+  const name = document.getElementById("analysisScriptSelect").value;
+  const day = document.getElementById("analysisDate").value;
+  const status = document.getElementById("analysisStatus");
+  const title = document.getElementById("analysisResultTitle");
+  const box = document.getElementById("analysisResult");
+  if (!name) return;
+  title.textContent = "Résultat — " + name;
+  status.textContent = "⏳ exécution...";
+  box.innerHTML = `<p class="text-[11px] text-slate-500">Calcul en cours...</p>`;
+  try {
+    const res = await fetch(`/api/analytics/custom/${encodeURIComponent(name)}?day=${day}`, { headers: IMJX.authHeaders(session) });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      status.textContent = "❌ erreur";
+      box.innerHTML = `<p class="text-[11px] text-red-400">${err.detail || "Échec de l'exécution du script."}</p>`;
+      return;
+    }
+    const data = await res.json();
+    status.textContent = "✅ mis à jour " + new Date().toLocaleTimeString("fr-FR");
+    renderAnalysisResult(data);
+  } catch (e) {
+    status.textContent = "❌ erreur réseau";
+    box.innerHTML = `<p class="text-[11px] text-red-400">Impossible de contacter le backend.</p>`;
+  }
+}
+
+// Rendu générique : n'importe quel script retourne un dict JSON — on affiche
+// automatiquement les champs simples en cartes, et la première liste d'objets
+// trouvée sous forme de tableau. Aucune adaptation nécessaire par script.
+function renderAnalysisResult(data) {
+  const box = document.getElementById("analysisResult");
+  if (!data || typeof data !== "object") {
+    box.innerHTML = `<pre class="text-[11px] whitespace-pre-wrap">${JSON.stringify(data)}</pre>`;
+    return;
+  }
+  let tableField = null, tableRows = null;
+  for (const [k, v] of Object.entries(data)) {
+    if (Array.isArray(v) && v.length && typeof v[0] === "object" && v[0] !== null) {
+      tableField = k; tableRows = v; break;
+    }
+  }
+  const scalarEntries = Object.entries(data).filter(([k, v]) => k !== tableField && !Array.isArray(v) && typeof v !== "object");
+  let html = "";
+  if (scalarEntries.length) {
+    html += `<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">` +
+      scalarEntries.map(([k, v]) => `<div class="bg-slate-950 border border-slate-800 rounded-lg p-2"><p class="text-[9px] text-slate-500 uppercase">${k}</p><p class="text-sm font-bold text-slate-200">${v}</p></div>`).join("") +
+      `</div>`;
+  }
+  if (tableRows && tableRows.length) {
+    const cols = Object.keys(tableRows[0]);
+    html += `<div class="overflow-x-auto" style="max-height:45vh;"><table class="w-full text-left text-[11px] min-w-[500px]">
+      <thead class="bg-slate-950 text-[9px] uppercase text-slate-400 border-b border-slate-700 sticky top-0"><tr>${cols.map(c => `<th class="p-2">${c}</th>`).join("")}</tr></thead>
+      <tbody class="divide-y divide-slate-800">${tableRows.map(r => `<tr>${cols.map(c => `<td class="p-2">${r[c] ?? ""}</td>`).join("")}</tr>`).join("")}</tbody>
+    </table></div>`;
+  }
+  if (!html) {
+    html = `<pre class="text-[11px] whitespace-pre-wrap text-slate-300">${JSON.stringify(data, null, 2)}</pre>`;
+  }
+  box.innerHTML = html;
+}
+
+function kpiCard(label, value, colorClass) {
+  return `<div class="bg-slate-900 border border-slate-700 rounded-xl p-3"><p class="text-[9px] text-slate-400 uppercase">${label}</p><p class="text-xl font-bold ${colorClass}">${value}</p></div>`;
+}
+
+function renderCcKpis(k) {
+  document.getElementById("ccKpis").innerHTML = [
+    kpiCard("Production Target", k.production_target, "text-slate-200"),
+    kpiCard("Production Réelle", k.production_actual, "text-blue-400"),
+    kpiCard("Performance %", k.performance_pct + "%", k.performance_pct >= 90 ? "text-emerald-400" : k.performance_pct >= 70 ? "text-amber-400" : "text-red-400"),
+    kpiCard("Rejet %", k.reject_pct + "%", k.reject_pct <= 2 ? "text-emerald-400" : "text-red-400"),
+    kpiCard("Machines actives", `${k.machines_running}/${k.machines_total}`, "text-emerald-400"),
+    kpiCard("Machines en alarme", k.machines_in_alarm, "text-red-400"),
+    kpiCard("Maintenance ouverte", k.open_maintenance, "text-amber-400"),
+    kpiCard("Alertes Qualité ouvertes", k.open_quality_issues, "text-orange-400"),
+  ].join("");
+}
+
+function renderCcProd(rows) {
+  const body = document.getElementById("ccProdBody");
+  if (!rows.length) { body.innerHTML = `<tr><td colspan="7" class="p-3 text-slate-600 text-center">Aucune donnée de production pour cette date.</td></tr>`; return; }
+  body.innerHTML = rows.map(r => `
+    <tr class="hover:bg-slate-800/40">
+      <td class="p-2 font-mono">${r.line_ref}</td>
+      <td class="p-2">${r.operator || "—"}</td>
+      <td class="p-2">${r.target}</td>
+      <td class="p-2">${r.produced}</td>
+      <td class="p-2 ${r.rejected > 0 ? 'text-red-400' : ''}">${r.rejected}</td>
+      <td class="p-2 font-bold ${r.performance_pct >= 90 ? 'text-emerald-400' : r.performance_pct >= 70 ? 'text-amber-400' : 'text-red-400'}">${r.performance_pct}%</td>
+      <td class="p-2 text-[10px]">${r.status}</td>
+    </tr>
+  `).join("");
+}
+
+function machineStatusColor(status) {
+  return { operational: "border-emerald-500 text-emerald-400", maintenance: "border-amber-500 text-amber-400", down: "border-red-500 text-red-400", retired: "border-slate-600 text-slate-500" }[status] || "border-slate-600 text-slate-400";
+}
+
+function renderCcMachines(rows) {
+  document.getElementById("ccMachines").innerHTML = rows.map(m => `
+    <a href="/machine.html?code=${encodeURIComponent(m.machine_code)}" class="block border ${machineStatusColor(m.status)} rounded-lg p-2 text-[10px] hover:bg-slate-800/40">
+      <div class="font-bold font-mono">${m.machine_code}</div>
+      <div class="text-slate-300 truncate">${m.name}</div>
+      <div class="uppercase">${m.status}</div>
+    </a>
+  `).join("") || `<p class="text-slate-600 text-xs">Aucune machine enregistrée. <a href="/machines-admin.html" class="text-blue-400 underline">En ajouter</a>.</p>`;
+}
+
+function renderCcMaintenance(rows) {
+  const open = rows.filter(r => r.status === "open").length;
+  const inProgress = rows.filter(r => r.status === "in_progress").length;
+  const resolved = rows.filter(r => r.status === "resolved").length;
+  document.getElementById("ccMaintKpis").innerHTML = `
+    <div><p class="text-amber-400 text-lg font-bold">${open}</p><p class="text-[9px] text-slate-400 uppercase">Ouvertes</p></div>
+    <div><p class="text-cyan-400 text-lg font-bold">${inProgress}</p><p class="text-[9px] text-slate-400 uppercase">En cours</p></div>
+    <div><p class="text-emerald-400 text-lg font-bold">${resolved}</p><p class="text-[9px] text-slate-400 uppercase">Résolues</p></div>
+  `;
+  document.getElementById("ccMaintList").innerHTML = rows.slice(0, 30).map(r => `
+    <div class="bg-slate-950 p-1.5 rounded border border-slate-800">
+      <span class="font-mono text-cyan-400">${r.machine_code}</span> — ${r.description || "(sans description)"}
+      <span class="text-slate-500"> · ${r.status}</span>
+    </div>
+  `).join("") || `<p class="text-slate-600">Aucune intervention enregistrée.</p>`;
+}
+
+let traceSearchTimeout;
+function debouncedTraceSearch() {
+  clearTimeout(traceSearchTimeout);
+  traceSearchTimeout = setTimeout(loadTraceability, 350);
+}
+
+async function loadTraceability() {
+  const dept = document.getElementById("ccTraceDept").value;
+  const q = document.getElementById("ccTraceSearch").value.trim();
+  const params = new URLSearchParams();
+  if (dept) params.set("department", dept);
+  if (q) params.set("q", q);
+  const res = await fetch(`/api/analytics/traceability?${params.toString()}`, { headers: IMJX.authHeaders(session) });
+  const rows = await res.json();
+  document.getElementById("ccTraceList").innerHTML = rows.map(r => `
+    <div class="bg-slate-950 p-1.5 rounded border border-slate-800">
+      <span class="text-slate-500">${fmtTime(r.timestamp)}</span>
+      <span class="font-bold ${rowColor(r.department)}">[${r.type}/${r.department}]</span>
+      <span class="text-slate-300">${r.user || ""}</span> — ${(r.detail || "").slice(0, 120)}
+    </div>
+  `).join("") || `<p class="text-slate-600 p-2">Aucun résultat.</p>`;
+}
+
+function exportReport(report, format) {
+  const day = document.getElementById("ccDate").value;
+  fetch(`/api/export?report=${report}&format=${format}&day=${day}`, { headers: IMJX.authHeaders(session) })
+    .then(res => { if (!res.ok) throw new Error("export échoué"); return res.blob(); })
+    .then(blob => {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${report}.${format}`;
+      link.click();
+    })
+    .catch(() => alert("❌ Échec de l'export."));
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+# Secrets / config locale — ne jamais commiter
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Base de données locale (si jamais lancée hors Docker)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Volumes / données locales
+/data/
+backend/data/
+
+# Éditeurs / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lqta – vos photos, dans l'ordre</title>
+<meta name="description" content="Lqta : partagez vos photos avec un fil chronologique, sans publicité et sans algorithme.">
+<meta name="theme-color" content="#1F4BA5">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--surface:#F4F6FB;--ink:#12151F;--mute:#636B7E;--line:#E4E7EF;--blue:#1F4BA5;--blue-2:#E7EDFA;--saffron:#F2B233;--heart:#E0245E;--warn:#FFF4DA;--warn-ink:#7A5200}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg)}
+body{font-family:'Figtree',system-ui,sans-serif;color:var(--ink);font-size:16px;line-height:1.5;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,textarea,select{font:inherit;color:inherit;width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff}
+textarea{resize:vertical;min-height:90px}
+:focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* barre du haut */
+.top{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .in{max-width:620px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.logo{font-family:'Instrument Serif',serif;font-size:34px;line-height:1;letter-spacing:-.5px;color:var(--blue)}
+.logo i{color:var(--saffron);font-style:normal}
+.tnav{display:flex;gap:4px}
+.tnav a{padding:8px 12px;border-radius:10px;font-weight:600;font-size:15px;color:var(--mute)}
+.tnav a.on{color:var(--ink);background:var(--surface)}
+
+/* barre du bas (mobile) */
+.bnav{position:fixed;left:0;right:0;bottom:0;z-index:10;background:#fff;border-top:1px solid var(--line);display:none;padding-bottom:env(safe-area-inset-bottom)}
+.bnav .in{display:grid;grid-template-columns:repeat(4,1fr);max-width:620px;margin:0 auto}
+.bnav a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0;font-size:12px;color:var(--mute);font-weight:600}
+.bnav a.on{color:var(--blue)}
+.bnav svg{width:24px;height:24px}
+.bnav a.pub span.ic{background:var(--blue);color:#fff;border-radius:10px;width:42px;height:30px;display:grid;place-items:center}
+@media (max-width:700px){.tnav{display:none}.bnav{display:block}}
+
+main{max-width:620px;margin:0 auto;padding:16px}
+h1{font-size:24px;line-height:1.2}
+.lead{color:var(--mute);margin:4px 0 16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--blue);color:#fff;font-weight:600;padding:11px 18px;border-radius:12px}
+.btn.ghost{background:var(--surface);color:var(--ink)}
+.btn.small{padding:7px 12px;font-size:14px;border-radius:10px}
+.btn[disabled]{opacity:.55;cursor:default}
+.err{background:#FDECEF;color:#8A1538;padding:10px 12px;border-radius:10px;margin:10px 0;font-size:15px}
+.ok{background:#E6F6EE;color:#14593A;padding:10px 12px;border-radius:10px;margin:10px 0;font-size:15px}
+.empty{text-align:center;padding:48px 16px;color:var(--mute)}
+.empty b{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
+.empty .btn{margin-top:14px}
+
+/* carte de post */
+.post{border:1px solid var(--line);border-radius:18px;overflow:hidden;margin-bottom:18px;background:#fff}
+.post header{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.post header .who{flex:1;min-width:0}
+.post header .who a{font-weight:700}
+.post header .who small{display:block;color:var(--mute);font-size:13px}
+.av{width:38px;height:38px;border-radius:50%;object-fit:cover;background:var(--blue-2);color:var(--blue);display:grid;place-items:center;font-weight:700;flex:none;overflow:hidden}
+.av.big{width:84px;height:84px;font-size:30px}
+.post .ph{display:block;background:var(--surface);aspect-ratio:1/1;width:100%;object-fit:cover}
+.post .acts{display:flex;align-items:center;gap:6px;padding:8px 8px 0}
+.post .acts button,.post .acts a{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:10px;font-weight:600}
+.post .acts svg{width:24px;height:24px}
+.post .acts .liked{color:var(--heart)}
+.post .acts .liked svg{fill:var(--heart)}
+.post .cap{padding:6px 14px 14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.post .cap a{font-weight:700;margin-right:6px}
+.tag{display:inline-block;font-size:12px;font-weight:600;background:var(--blue-2);color:var(--blue);padding:2px 8px;border-radius:999px}
+.hiddenbox{background:var(--warn);color:var(--warn-ink);padding:10px 14px;font-size:14px}
+.menu{position:relative}
+.menu .pop{position:absolute;right:0;top:36px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(18,21,31,.12);min-width:200px;z-index:5;overflow:hidden}
+.menu .pop button{display:block;width:100%;text-align:left;padding:11px 14px}
+.menu .pop button:hover{background:var(--surface)}
+.menu .pop .danger{color:#B3261E}
+
+/* séparateur "tout vu" */
+.seen{display:flex;align-items:center;gap:12px;margin:8px 0 22px;color:var(--mute);font-size:14px}
+.seen::before,.seen::after{content:"";flex:1;height:1px;background:var(--line)}
+.seen span{display:flex;align-items:center;gap:8px;background:var(--surface);padding:8px 14px;border-radius:999px;color:var(--ink);font-weight:600}
+.seen svg{width:18px;height:18px;color:#1E8E5A}
+
+/* grille */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.grid a{position:relative;aspect-ratio:1/1;background:var(--surface);overflow:hidden;border-radius:6px}
+.grid img{width:100%;height:100%;object-fit:cover;display:block}
+.grid .flag{position:absolute;inset:auto 4px 4px 4px;background:var(--warn);color:var(--warn-ink);font-size:11px;font-weight:600;border-radius:6px;padding:2px 6px;text-align:center}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;scrollbar-width:none}
+.chips button{white-space:nowrap;padding:7px 14px;border-radius:999px;background:var(--surface);font-weight:600;font-size:14px}
+.chips button.on{background:var(--ink);color:#fff}
+
+/* profil */
+.prof{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;margin-bottom:14px}
+.prof h1{font-size:22px}
+.prof .un{color:var(--mute)}
+.stats{display:flex;gap:18px;margin:8px 0}
+.stats b{display:block;font-size:18px}
+.stats span{color:var(--mute);font-size:14px}
+.bio{white-space:pre-wrap;margin:6px 0 14px}
+
+/* commentaires */
+.cmts{padding:0 14px 6px}
+.cmt{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.cmt .av{width:30px;height:30px;font-size:13px}
+.cmt p{flex:1;white-space:pre-wrap;overflow-wrap:anywhere}
+.cmt p a{font-weight:700;margin-right:6px}
+.cmt small{color:var(--mute);font-size:12px;display:block}
+.cform{display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid var(--line)}
+.cform input{flex:1}
+
+/* formulaires */
+.field{margin-bottom:14px}
+.field label{display:block;font-weight:600;margin-bottom:6px;font-size:15px}
+.field small{color:var(--mute);font-size:13px}
+.drop{display:grid;place-items:center;border:2px dashed var(--line);border-radius:18px;aspect-ratio:1/1;background:var(--surface);color:var(--mute);text-align:center;padding:20px;cursor:pointer;overflow:hidden}
+.drop img{width:100%;height:100%;object-fit:cover;border-radius:12px}
+
+/* écran d'accueil */
+.welcome{min-height:calc(100vh - 140px);display:grid;align-content:center;gap:26px}
+.welcome .hero{font-family:'Instrument Serif',serif;font-size:clamp(46px,11vw,72px);line-height:.95;letter-spacing:-1px}
+.welcome .hero em{color:var(--blue)}
+.welcome ul{list-style:none;display:grid;gap:8px;color:var(--mute)}
+.welcome li::before{content:"✓";color:#1E8E5A;font-weight:700;margin-right:8px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface);border-radius:12px;padding:4px;margin-bottom:14px}
+.tabs button{padding:9px;border-radius:9px;font-weight:600;color:var(--mute)}
+.tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card{border:1px solid var(--line);border-radius:18px;padding:18px}
+.more{display:flex;justify-content:center;margin:6px 0 20px}
+.badge{position:absolute;top:2px;right:calc(50% - 22px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--heart);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+.tnav a{position:relative}.tnav .badge{top:2px;right:2px}
+.bnav a{position:relative}
+.sform{display:flex;gap:8px;margin-bottom:14px}.sform input{flex:1}
+.ulist a{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.ulist b{display:block}.ulist small{color:var(--mute)}
+.notif{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;margin-bottom:8px;background:var(--surface)}
+.notif.new{background:var(--blue-2)}
+.notif .t{flex:1;min-width:0}.notif .t small{display:block;color:var(--mute);font-size:12px}
+.notif img.th{width:46px;height:46px;border-radius:8px;object-fit:cover;flex:none}
+.post .acts .sp{flex:1}
+.post .acts .saved{color:var(--blue)}.post .acts .saved svg{fill:var(--blue)}
+.cap .hl{font-weight:600;color:var(--blue);margin:0}
+.sbar{display:flex;gap:12px;overflow-x:auto;padding:2px 0 14px;margin-bottom:6px;scrollbar-width:none}
+.sbar::-webkit-scrollbar{display:none}
+.sb{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:68px;font-size:12px;font-weight:600;color:var(--ink)}
+.sb .ring{width:64px;height:64px;border-radius:50%;padding:3px;background:linear-gradient(45deg,var(--saffron),var(--heart),var(--blue));display:grid;place-items:center}
+.sb .ring.seen{background:var(--line)}.sb .ring.add{background:var(--surface);border:2px dashed var(--line);color:var(--blue)}
+.sb .ring .av{width:100%;height:100%;border:3px solid #fff}
+.sb span.n{max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv{position:fixed;inset:0;z-index:50;background:#000;display:grid;place-items:center}
+.sv img{max-width:100%;max-height:100%;object-fit:contain}
+.sv .bars{position:absolute;top:calc(8px + env(safe-area-inset-top));left:8px;right:8px;display:flex;gap:4px}
+.sv .bars i{flex:1;height:3px;background:rgba(255,255,255,.35);border-radius:2px;overflow:hidden}
+.sv .bars i b{display:block;height:100%;width:0;background:#fff}
+.sv .hd{position:absolute;top:calc(20px + env(safe-area-inset-top));left:12px;right:12px;display:flex;align-items:center;gap:10px;color:#fff;font-weight:700}
+.sv .hd small{font-weight:400;opacity:.8}
+.sv .hd button{color:#fff;font-size:26px;margin-left:auto;padding:4px 10px}
+.sv .tap{position:absolute;top:70px;bottom:0;width:40%}.sv .tap.l{left:0}.sv .tap.r{right:0}
+.sv .del{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:rgba(255,255,255,.18);color:#fff;border-radius:999px;padding:8px 18px;font-weight:600;z-index:2}
+.mi{position:relative;display:flex;align-items:center;padding:8px 10px;border-radius:10px;color:var(--mute)}
+.mi[hidden]{display:none}
+.mi svg{width:24px;height:24px}.mi .badge{top:0;right:0}
+.conv a{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
+.conv .t{flex:1;min-width:0}.conv .t b{display:block}.conv .t span{display:block;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv .t span.u{color:var(--ink);font-weight:700}
+.conv i.dot{width:10px;height:10px;border-radius:50%;background:var(--blue);flex:none}
+.thread{display:flex;flex-direction:column;gap:6px;min-height:50vh;padding-bottom:8px}
+.bub{max-width:78%;padding:8px 12px;border-radius:16px;background:var(--surface);overflow-wrap:anywhere;white-space:pre-wrap}
+.bub.me{align-self:flex-end;background:var(--blue);color:#fff}
+.bub small{display:block;font-size:11px;opacity:.7;margin-top:2px}
+.mform{position:sticky;bottom:calc(70px + env(safe-area-inset-bottom));display:flex;gap:8px;background:#fff;padding:10px 0}
+.mform input{flex:1}
+@media (min-width:701px){.mform{bottom:0}}
+.post video.ph{background:#000;object-fit:contain}
+.grid .vb{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);color:#fff;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700}
+.reels{height:calc(100vh - 210px);min-height:420px;overflow-y:auto;scroll-snap-type:y mandatory;border-radius:18px;background:#000;outline-offset:2px}
+.reel{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:grid;place-items:center}
+.reel video{width:100%;height:100%;object-fit:contain;background:#000}
+.reel .rinfo{position:absolute;left:12px;right:70px;bottom:14px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7)}
+.reel .rinfo a{color:#fff}.reel .rinfo p{font-size:14px;margin-top:4px;max-height:3.2em;overflow:hidden}
+.reel .rinfo p a.hl{color:#fff;text-decoration:underline}
+.reel .ract{position:absolute;right:10px;bottom:20px;display:flex;flex-direction:column;gap:14px;align-items:center}
+.reel .ract button,.reel .ract a{display:flex;flex-direction:column;align-items:center;color:#fff;font-weight:700;font-size:13px;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.reel .ract svg{width:30px;height:30px}.reel .ract .liked{color:#ff5b8a}.reel .ract .liked svg{fill:#ff5b8a}
+.reel .rmute{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.5);color:#fff;border-radius:999px;width:38px;height:38px;font-size:18px}
+.vprev{width:100%;aspect-ratio:1/1;background:#000;border-radius:12px;object-fit:contain}
+@media (prefers-reduced-motion:no-preference){.likepop{animation:pop .3s ease}@keyframes pop{50%{transform:scale(1.25)}}}
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+  <a class="logo" href="#/" aria-label="Lqta, accueil">lqta<i>.</i></a>
+  <nav class="tnav" id="tnav" aria-label="Navigation"></nav>
+  <a class="mi" id="ri" href="#/reels" aria-label="Reels" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg></a>
+  <a class="mi" id="mi" href="#/messages" aria-label="Messages" hidden></a>
+</div></header>
+<main id="app" aria-live="polite"></main>
+<nav class="bnav" id="bnav" aria-label="Navigation"></nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = "https://npfidgwfnyccijfbgekb.supabase.co";
+const SUPABASE_KEY = "sb_publishable_HTpDTzwtpN-0GMCPZ4uqcQ_emAIa_YW";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const CATS = [["photo","Photographie"],["nourriture","Nourriture"],["voyage","Voyage"],["nature","Nature"],["mode","Mode"],["sport","Sport"],["art","Art"],["tech","Tech"],["autre","Autre"]];
+const CAT = Object.fromEntries(CATS);
+const REASONS = [["spam","Spam ou arnaque"],["violence","Violence"],["nudite","Nudité"],["harcelement","Harcèlement"],["faux","Fausse information"],["autre","Autre"]];
+const PAGE = 15;
+
+let me = null;       // { id, username, ... }
+let mySaved = new Set(); let unread = 0, msgUnread = 0, poll = null;
+const app = document.getElementById("app");
+
+/* ---------- utilitaires ---------- */
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const photoUrl = (p) => sb.storage.from("photos").getPublicUrl(p).data.publicUrl;
+const videoUrl = (p) => sb.storage.from("videos").getPublicUrl(p).data.publicUrl;
+const MAX_VIDEO_MB = 20, MAX_VIDEO_S = 30;
+function ago(d){
+  const s = (Date.now() - new Date(d)) / 1000;
+  if (s < 60) return "à l'instant";
+  if (s < 3600) return "il y a " + Math.floor(s/60) + " min";
+  if (s < 86400) return "il y a " + Math.floor(s/3600) + " h";
+  if (s < 604800) return "il y a " + Math.floor(s/86400) + " j";
+  return new Date(d).toLocaleDateString("fr-FR", { day:"numeric", month:"short", year: s > 31536000 ? "numeric" : undefined });
+}
+function avatar(p, big){
+  const cls = "av" + (big ? " big" : "");
+  if (p && p.avatar_url) return `<img class="${cls}" src="${esc(p.avatar_url)}" alt="">`;
+  const l = ((p && (p.full_name || p.username)) || "?").trim()[0] || "?";
+  return `<span class="${cls}" aria-hidden="true">${esc(l.toUpperCase())}</span>`;
+}
+const ICON = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+  disc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>',
+  user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>',
+  heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7.5-4.6-9.5-9.3C1 8 3.3 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.7 0 6 3.5 4.5 7.2C19.5 16.4 12 21 12 21z"/></svg>',
+  cmt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></svg>',
+  dots:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 7H4c0-1 2-2 2-7z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+  mark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
+  mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>'
+};
+
+function nav(){
+  const r = location.hash || "#/";
+  const items = me ? [["#/","Fil",ICON.home],["#/decouvrir","Découvrir",ICON.disc],["#/publier","Publier",ICON.plus,"pub"],["#/notifications","Notifs",ICON.bell,"nt"],["#/u/"+me.username,"Profil",ICON.user]]
+                   : [["#/decouvrir","Découvrir",ICON.disc],["#/connexion","Se connecter",ICON.user]];
+  const on = (h) => (h === "#/" ? r === "#/" || r === "" : r.startsWith(h));
+  document.getElementById("tnav").innerHTML = items.map(([h,t,ic,c]) => `<a href="${h}" class="${on(h)?"on":""}">${t}${c==="nt"&&unread?`<span class="badge" aria-label="${unread} non lues">${unread>9?"9+":unread}</span>`:""}</a>`).join("") + (me ? `<a href="#" id="logout">Déconnexion</a>` : "");
+  document.getElementById("bnav").innerHTML = `<div class="in" style="grid-template-columns:repeat(${items.length},1fr)">` +
+    items.map(([h,t,ic,c]) => `<a href="${h}" class="${on(h)?"on":""} ${c||""}"><span class="ic">${ic}</span>${t}${c==="nt"&&unread?`<span class="badge" aria-label="${unread} non lues">${unread>9?"9+":unread}</span>`:""}</a>`).join("") + `</div>`;
+  const mi = document.getElementById("mi");
+  mi.hidden = !me; mi.innerHTML = ICON.mail + (msgUnread ? `<span class="badge" aria-label="${msgUnread} messages non lus">${msgUnread>9?"9+":msgUnread}</span>` : "");
+  const lo = document.getElementById("logout");
+  if (lo) lo.onclick = async (e) => { e.preventDefault(); await sb.auth.signOut(); };
+}
+
+/* ---------- carte de post ---------- */
+function postCard(p, liked, opts = {}){
+  const mine = me && p.user_id === me.id; const saved = me && mySaved.has(p.id);
+  return `<article class="post" data-id="${p.id}">
+    <header>
+      <a href="#/u/${esc(p.username)}">${avatar(p)}</a>
+      <div class="who"><a href="#/u/${esc(p.username)}">${esc(p.username)}</a><small>${ago(p.created_at)} · <span class="tag">${esc(CAT[p.category]||"Autre")}</span></small></div>
+      ${me ? `<div class="menu"><button aria-label="Options" data-menu>${ICON.dots}</button></div>` : ""}
+    </header>
+    ${p.hidden ? `<div class="hiddenbox"><b>Visible seulement par vous.</b> ${esc(p.hidden_reason || "Cette publication est masquée.")}</div>` : ""}
+    ${p.video_path ? `<video class="ph" src="${esc(videoUrl(p.video_path))}" poster="${esc(photoUrl(p.image_path))}" controls playsinline preload="none" aria-label="Vidéo publiée par ${esc(p.username)}"></video>`
+      : `<a href="#/p/${p.id}"><img class="ph" src="${esc(photoUrl(p.image_path))}" alt="Photo publiée par ${esc(p.username)}" loading="lazy"></a>`}
+    <div class="acts">
+      <button data-like class="${liked?"liked":""}" aria-pressed="${liked?"true":"false"}" aria-label="J'aime">${ICON.heart}<span>${p.like_count}</span></button>
+      <a href="#/p/${p.id}" aria-label="Commentaires">${ICON.cmt}<span>${p.comment_count}</span></a>
+      <span class="sp"></span>
+      ${me ? `<button data-save class="${saved?"saved":""}" aria-pressed="${saved?"true":"false"}" aria-label="Enregistrer">${ICON.mark}</button>` : ""}
+    </div>
+    ${p.caption ? `<p class="cap"><a href="#/u/${esc(p.username)}">${esc(p.username)}</a>${tagLinks(p.caption)}</p>` : `<div style="height:10px"></div>`}
+    ${opts.after || ""}
+  </article>`;
+}
+
+function tagLinks(t){
+  return esc(t).replace(/#([\p{L}\p{N}_]{2,40})/gu, (m, w) => `<a class="hl" href="#/recherche?q=${encodeURIComponent("#" + w)}">${m}</a>`);
+}
+async function refreshUnread(){
+  if (!me) { unread = 0; return; }
+  const { count } = await sb.from("notifications").select("id", { count:"exact", head:true }).eq("user_id", me.id).eq("read", false);
+  const { count: mc } = await sb.from("messages").select("id", { count:"exact", head:true }).eq("recipient_id", me.id).is("read_at", null);
+  const n = count || 0, m = mc || 0; if (n !== unread || m !== msgUnread) { unread = n; msgUnread = m; nav(); }
+}
+function bindPosts(root){
+  root.querySelectorAll(".post").forEach(el => {
+    const id = Number(el.dataset.id);
+    const lb = el.querySelector("[data-like]");
+    lb.onclick = async () => {
+      if (!me) return (location.hash = "#/connexion");
+      const on = lb.classList.toggle("liked"); lb.setAttribute("aria-pressed", on);
+      const n = lb.querySelector("span"); n.textContent = Number(n.textContent) + (on ? 1 : -1);
+      lb.classList.remove("likepop"); void lb.offsetWidth; if (on) lb.classList.add("likepop");
+      const { error } = on ? await sb.from("likes").insert({ user_id: me.id, post_id: id })
+                           : await sb.from("likes").delete().eq("user_id", me.id).eq("post_id", id);
+      if (error) { lb.classList.toggle("liked"); n.textContent = Number(n.textContent) + (on ? -1 : 1); }
+    };
+    const sv = el.querySelector("[data-save]");
+    if (sv) sv.onclick = async () => {
+      const on = sv.classList.toggle("saved"); sv.setAttribute("aria-pressed", on);
+      on ? mySaved.add(id) : mySaved.delete(id);
+      const { error } = on ? await sb.from("saved_posts").insert({ user_id: me.id, post_id: id })
+                           : await sb.from("saved_posts").delete().eq("user_id", me.id).eq("post_id", id);
+      if (error) { sv.classList.toggle("saved"); on ? mySaved.delete(id) : mySaved.add(id); }
+    };
+    const mb = el.querySelector("[data-menu]");
+    if (mb) mb.onclick = (e) => {
+      e.stopPropagation();
+      document.querySelectorAll(".pop").forEach(x => x.remove());
+      const mine = el.querySelector(".who a").textContent === me.username;
+      const pop = document.createElement("div"); pop.className = "pop";
+      pop.innerHTML = mine ? `<button data-del class="danger">Supprimer la publication</button>`
+                           : REASONS.map(([k,t]) => `<button data-rep="${k}">Signaler : ${t}</button>`).join("");
+      mb.parentNode.appendChild(pop);
+      pop.onclick = async (ev) => {
+        const b = ev.target.closest("button"); if (!b) return;
+        if (b.dataset.del !== undefined) {
+          if (!confirm("Supprimer cette publication ? Cette action est définitive.")) return;
+          const { data } = await sb.from("posts").select("image_path,video_path").eq("id", id).single();
+          const { error } = await sb.from("posts").delete().eq("id", id);
+          if (!error) { if (data) { await sb.storage.from("photos").remove([data.image_path]); if (data.video_path) await sb.storage.from("videos").remove([data.video_path]); } el.remove(); }
+        } else {
+          const { error } = await sb.from("reports").insert({ post_id: id, reporter_id: me.id, reason: b.dataset.rep });
+          pop.innerHTML = `<button disabled>${error && error.code === "23505" ? "Vous avez déjà signalé cette publication." : "Merci, signalement envoyé."}</button>`;
+          setTimeout(() => pop.remove(), 1600);
+        }
+      };
+    };
+  });
+}
+document.addEventListener("click", () => document.querySelectorAll(".pop").forEach(x => x.remove()));
+
+async function likedSet(ids){
+  if (!me || !ids.length) return new Set();
+  const { data } = await sb.from("likes").select("post_id").eq("user_id", me.id).in("post_id", ids);
+  return new Set((data || []).map(r => r.post_id));
+}
+
+/* ---------- pages ---------- */
+async function pageFeed(){
+  if (!me) return pageWelcome();
+  app.innerHTML = `<div class="sbar" id="sbar" aria-label="Stories"></div><h1>Votre fil</h1><p class="lead">Les publications des comptes que vous suivez, de la plus récente à la plus ancienne. Rien n'est caché ni trié par un algorithme.</p><div id="list"></div><div class="more" id="more"></div>`;
+  const { data: f } = await sb.from("follows").select("following_id").eq("follower_id", me.id);
+  const ids = [me.id, ...(f || []).map(x => x.following_id)];
+  const key = "lqta_seen_" + me.id;
+  let prev = null; try { prev = localStorage.getItem(key); localStorage.setItem(key, new Date().toISOString()); } catch {}
+  loadStories(ids);
+  let page = 0, dividerDone = false;
+  const list = document.getElementById("list"), more = document.getElementById("more");
+  async function load(){
+    more.innerHTML = "";
+    const { data, error } = await sb.from("posts_feed").select("*").in("user_id", ids)
+      .order("created_at", { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1);
+    if (error) { list.insertAdjacentHTML("beforeend", `<p class="err">Impossible de charger le fil : ${esc(error.message)}</p>`); return; }
+    if (!data.length && page === 0) {
+      list.innerHTML = ids.length === 1
+        ? `<div class="empty"><b>Votre fil est vide pour l'instant.</b>Suivez des comptes depuis Découvrir, ou publiez votre première photo.<br><a class="btn" href="#/decouvrir">Découvrir des comptes</a> <a class="btn ghost" href="#/publier">Publier</a></div>`
+        : `<div class="empty"><b>Aucune publication pour l'instant.</b>Les comptes que vous suivez n'ont encore rien publié.</div>`;
+      return;
+    }
+    const liked = await likedSet(data.map(p => p.id));
+    let html = "";
+    for (const p of data) {
+      if (prev && !dividerDone && new Date(p.created_at) <= new Date(prev)) {
+        html += `<div class="seen"><span>${ICON.check}Vous avez tout vu depuis votre dernière visite</span></div>`; dividerDone = true;
+      }
+      html += postCard(p, liked.has(p.id));
+    }
+    const tmp = document.createElement("div"); tmp.innerHTML = html; bindPosts(tmp);
+    while (tmp.firstChild) list.appendChild(tmp.firstChild);
+    if (data.length === PAGE) { more.innerHTML = `<button class="btn ghost">Voir les publications plus anciennes</button>`; more.firstChild.onclick = () => { page++; load(); }; }
+    else list.insertAdjacentHTML("beforeend", `<div class="seen"><span>${ICON.check}Vous êtes arrivé au bout du fil</span></div>`);
+  }
+  load();
+}
+
+async function pageDiscover(){
+  const cat = new URLSearchParams(location.hash.split("?")[1] || "").get("c") || "";
+  app.innerHTML = `<h1>Découvrir</h1><p class="lead">Les dernières publications de tout le monde, par ordre d'arrivée. Choisissez un thème pour filtrer.</p>
+    <form class="sform" id="sf" role="search"><label class="sr" for="sq">Rechercher</label><input id="sq" type="search" placeholder="Rechercher un compte, un mot ou un #thème" maxlength="60"><button class="btn">Chercher</button></form>
+    <div class="chips" role="tablist">${[["","Tout"],...CATS].map(([k,t]) => `<button role="tab" aria-selected="${k===cat}" class="${k===cat?"on":""}" data-c="${k}">${t}</button>`).join("")}</div>
+    <div class="grid" id="grid"></div><div class="more" id="more"></div>`;
+  document.getElementById("sf").onsubmit = (e) => { e.preventDefault(); const v = document.getElementById("sq").value.trim(); if (v) location.hash = "#/recherche?q=" + encodeURIComponent(v); };
+  app.querySelectorAll(".chips button").forEach(b => b.onclick = () => location.hash = "#/decouvrir" + (b.dataset.c ? "?c=" + b.dataset.c : ""));
+  let page = 0; const grid = document.getElementById("grid"), more = document.getElementById("more");
+  async function load(){
+    more.innerHTML = "";
+    let q = sb.from("posts_feed").select("id,image_path,username,video_path").eq("hidden", false).order("created_at", { ascending:false }).range(page*30, page*30+29);
+    if (cat) q = q.eq("category", cat);
+    const { data, error } = await q;
+    if (error) { grid.outerHTML = `<p class="err">${esc(error.message)}</p>`; return; }
+    if (!data.length && page === 0) { grid.outerHTML = `<div class="empty"><b>Rien ici pour l'instant.</b>Soyez la première personne à publier${cat ? " dans « " + esc(CAT[cat]) + " »" : ""}.<br>${me ? `<a class="btn" href="#/publier">Publier une photo</a>` : `<a class="btn" href="#/connexion">Créer un compte</a>`}</div>`; return; }
+    grid.insertAdjacentHTML("beforeend", data.map(p => `<a href="#/p/${p.id}"><img src="${esc(photoUrl(p.image_path))}" alt="Photo de ${esc(p.username)}" loading="lazy">${p.video_path ? `<span class="vb">▶</span>` : ""}</a>`).join(""));
+    if (data.length === 30) { more.innerHTML = `<button class="btn ghost">Voir plus</button>`; more.firstChild.onclick = () => { page++; load(); }; }
+  }
+  load();
+}
+
+async function pagePost(id){
+  app.innerHTML = `<p class="lead">Chargement…</p>`;
+  const { data: p } = await sb.from("posts_feed").select("*").eq("id", id).maybeSingle();
+  if (!p) { app.innerHTML = `<div class="empty"><b>Publication introuvable.</b>Elle a peut-être été supprimée ou masquée.<br><a class="btn" href="#/">Retour au fil</a></div>`; return; }
+  const liked = await likedSet([p.id]);
+  const { data: cs } = await sb.from("comments").select("id,body,created_at,user_id,profiles(username,avatar_url,full_name)").eq("post_id", id).order("created_at");
+  const cmts = (cs || []).map(c => `<div class="cmt" data-c="${c.id}">${avatar(c.profiles)}<p><a href="#/u/${esc(c.profiles.username)}">${esc(c.profiles.username)}</a>${esc(c.body)}<small>${ago(c.created_at)}${me && (c.user_id === me.id || p.user_id === me.id) ? ` · <button data-delc="${c.id}" style="color:var(--mute);font-size:12px">Supprimer</button>` : ""}</small></p></div>`).join("");
+  const after = `<div class="cmts">${cmts || `<p style="color:var(--mute);padding:8px 0 10px;border-top:1px solid var(--line)">Aucun commentaire. Écrivez le premier.</p>`}</div>
+    ${me ? `<form class="cform" id="cf"><label class="sr" for="ct">Votre commentaire</label><input id="ct" maxlength="500" placeholder="Ajouter un commentaire…" autocomplete="off"><button class="btn small">Publier</button></form>`
+         : `<div class="cform"><a class="btn small" href="#/connexion">Se connecter pour commenter</a></div>`}`;
+  app.innerHTML = postCard(p, liked.has(p.id), { after });
+  bindPosts(app);
+  app.querySelectorAll("[data-delc]").forEach(b => b.onclick = async () => { await sb.from("comments").delete().eq("id", b.dataset.delc); pagePost(id); });
+  const cf = document.getElementById("cf");
+  if (cf) cf.onsubmit = async (e) => {
+    e.preventDefault(); const v = document.getElementById("ct").value.trim(); if (!v) return;
+    cf.querySelector("button").disabled = true;
+    const { error } = await sb.from("comments").insert({ post_id: id, user_id: me.id, body: v });
+    if (error) { cf.insertAdjacentHTML("afterend", `<p class="err" style="margin:0 14px 14px">${esc(error.message)}</p>`); cf.querySelector("button").disabled = false; }
+    else pagePost(id);
+  };
+}
+
+async function pageProfile(username){
+  app.innerHTML = `<p class="lead">Chargement…</p>`;
+  const { data: u } = await sb.from("profiles").select("*").eq("username", username).maybeSingle();
+  if (!u) { app.innerHTML = `<div class="empty"><b>Ce compte n'existe pas.</b><a class="btn" href="#/decouvrir">Découvrir</a></div>`; return; }
+  const mine = me && me.id === u.id;
+  const [{ count: nPosts }, { count: nFollowers }, { count: nFollowing }, { data: posts }, fol] = await Promise.all([
+    sb.from("posts").select("id", { count:"exact", head:true }).eq("user_id", u.id).eq("hidden", false),
+    sb.from("follows").select("follower_id", { count:"exact", head:true }).eq("following_id", u.id),
+    sb.from("follows").select("following_id", { count:"exact", head:true }).eq("follower_id", u.id),
+    sb.from("posts").select("id,image_path,hidden,video_path").eq("user_id", u.id).order("created_at", { ascending:false }).limit(90),
+    me && !mine ? sb.from("follows").select("follower_id").eq("follower_id", me.id).eq("following_id", u.id).maybeSingle() : Promise.resolve({ data:null })
+  ]);
+  let following = !!fol.data;
+  app.innerHTML = `<section class="prof">${avatar(u, true)}<div><h1>${esc(u.full_name || u.username)}</h1><div class="un">@${esc(u.username)}</div>
+      <div class="stats"><div><b>${nPosts||0}</b><span>publications</span></div><div><b id="nf">${nFollowers||0}</b><span>abonnés</span></div><div><b>${nFollowing||0}</b><span>abonnements</span></div></div></div></section>
+    ${u.bio ? `<p class="bio">${esc(u.bio)}</p>` : ""}
+    <div style="display:flex;gap:8px;margin-bottom:18px">
+      ${mine ? `<a class="btn ghost" href="#/modifier">Modifier le profil</a><a class="btn ghost" href="#/enregistres">Enregistrés</a><a class="btn ghost" href="#" id="lo2">Se déconnecter</a>`
+             : me ? `<button class="btn ${following?"ghost":""}" id="fb">${following?"Abonné":"Suivre"}</button><a class="btn ghost" href="#/m/${esc(u.username)}">Message</a>` : `<a class="btn" href="#/connexion">Se connecter pour suivre</a>`}
+    </div>
+    ${(posts||[]).length ? `<div class="grid">${posts.map(p => `<a href="#/p/${p.id}"><img src="${esc(photoUrl(p.image_path))}" alt="" loading="lazy">${p.video_path?`<span class="vb">▶</span>`:""}${p.hidden?`<span class="flag">Masquée</span>`:""}</a>`).join("")}</div>`
+      : `<div class="empty"><b>${mine ? "Vous n'avez encore rien publié." : "Aucune publication."}</b>${mine ? `<a class="btn" href="#/publier">Publier ma première photo</a>` : ""}</div>`}`;
+  const lo2 = document.getElementById("lo2"); if (lo2) lo2.onclick = async (e) => { e.preventDefault(); await sb.auth.signOut(); };
+  const fb = document.getElementById("fb");
+  if (fb) fb.onclick = async () => {
+    fb.disabled = true; const nf = document.getElementById("nf");
+    const { error } = following ? await sb.from("follows").delete().eq("follower_id", me.id).eq("following_id", u.id)
+                                : await sb.from("follows").insert({ follower_id: me.id, following_id: u.id });
+    if (!error) { following = !following; nf.textContent = Number(nf.textContent) + (following ? 1 : -1); fb.textContent = following ? "Abonné" : "Suivre"; fb.classList.toggle("ghost", following); }
+    fb.disabled = false;
+  };
+}
+
+function resizeImage(file, max = 1080){
+  return new Promise((res, rej) => {
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      c.toBlob(b => b ? res(b) : rej(new Error("Image illisible")), "image/jpeg", 0.85);
+    };
+    img.onerror = () => rej(new Error("Ce fichier n'est pas une image lisible."));
+    img.src = url;
+  });
+}
+
+function videoInfo(file){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), v = document.createElement("video");
+    v.preload = "metadata"; v.muted = true; v.playsInline = true;
+    v.onloadedmetadata = () => { const d = v.duration; if (!isFinite(d)) { URL.revokeObjectURL(url); return rej(new Error("Vidéo illisible.")); } v.currentTime = Math.min(d * 0.4, 3); };
+    v.onseeked = () => {
+      const s = Math.min(1, 1080 / Math.max(v.videoWidth, v.videoHeight)); const c = document.createElement("canvas");
+      c.width = Math.round(v.videoWidth * s); c.height = Math.round(v.videoHeight * s);
+      c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+      c.toBlob(b => { const d = v.duration; URL.revokeObjectURL(url); b ? res({ duration: d, poster: b }) : rej(new Error("Aperçu impossible.")); }, "image/jpeg", 0.85);
+    };
+    v.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Ce format vidéo n'est pas lisible par votre navigateur (essayez MP4).")); };
+    v.src = url;
+  });
+}
+
+function pagePublish(){
+  if (!me) return (location.hash = "#/connexion");
+  app.innerHTML = `<h1>Publier</h1><p class="lead">Une photo, ou une vidéo courte (${MAX_VIDEO_S} secondes et ${MAX_VIDEO_MB} Mo au maximum). Elle apparaîtra en haut du fil de vos abonnés, dans l'ordre d'arrivée.</p>
+  <form id="pf">
+    <div class="field"><label for="pfile" class="drop" id="drop">Touchez pour choisir une photo ou une vidéo<br><small>JPEG, PNG, WebP, MP4 ou WebM</small></label><input type="file" id="pfile" accept="image/*,video/mp4,video/webm,video/quicktime" class="sr"></div>
+    <div class="field"><label for="pcat">Thème</label><select id="pcat">${CATS.map(([k,t]) => `<option value="${k}">${t}</option>`).join("")}</select></div>
+    <div class="field"><label for="pcap">Légende <small>(facultatif)</small></label><textarea id="pcap" maxlength="1000" placeholder="Racontez l'histoire de cette publication"></textarea></div>
+    <div id="pmsg"></div>
+    <button class="btn" id="pbtn" disabled>Publier</button>
+  </form>`;
+  let blob = null, vfile = null, poster = null;
+  const pfile = document.getElementById("pfile"), drop = document.getElementById("drop"), pbtn = document.getElementById("pbtn"), msg = document.getElementById("pmsg");
+  pfile.onchange = async () => {
+    msg.innerHTML = ""; blob = vfile = poster = null; pbtn.disabled = true; const f = pfile.files[0]; if (!f) return;
+    try {
+      if (f.type.startsWith("video/")) {
+        if (f.size > MAX_VIDEO_MB * 1048576) throw new Error(`Cette vidéo pèse ${(f.size/1048576).toFixed(1)} Mo. Maximum : ${MAX_VIDEO_MB} Mo.`);
+        const info = await videoInfo(f);
+        if (info.duration > MAX_VIDEO_S + 0.5) throw new Error(`Cette vidéo dure ${Math.round(info.duration)} secondes. Maximum : ${MAX_VIDEO_S} secondes.`);
+        vfile = f; poster = info.poster;
+        drop.innerHTML = `<video class="vprev" src="${URL.createObjectURL(f)}" controls muted playsinline></video>`;
+      } else {
+        blob = await resizeImage(f); drop.innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Aperçu de la photo">`;
+      }
+      pbtn.disabled = false;
+    } catch (e) { msg.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  };
+  document.getElementById("pf").onsubmit = async (e) => {
+    e.preventDefault(); if (!blob && !vfile) return;
+    pbtn.disabled = true; pbtn.textContent = "Publication…";
+    const fail = (t) => { msg.innerHTML = `<p class="err">${esc(t)}</p>`; pbtn.disabled = false; pbtn.textContent = "Publier"; };
+    const base = `${me.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+    const imgPath = base + ".jpg"; let vidPath = null;
+    const up = await sb.storage.from("photos").upload(imgPath, vfile ? poster : blob, { contentType: "image/jpeg" });
+    if (up.error) return fail("Envoi de l'image impossible : " + up.error.message);
+    if (vfile) {
+      const ext = vfile.type === "video/webm" ? "webm" : vfile.type === "video/quicktime" ? "mov" : "mp4";
+      vidPath = base + "." + ext;
+      const uv = await sb.storage.from("videos").upload(vidPath, vfile, { contentType: vfile.type });
+      if (uv.error) { await sb.storage.from("photos").remove([imgPath]); return fail("Envoi de la vidéo impossible : " + uv.error.message); }
+    }
+    const { data, error } = await sb.from("posts").insert({ user_id: me.id, image_path: imgPath, video_path: vidPath, caption: document.getElementById("pcap").value.trim() || null, category: document.getElementById("pcat").value }).select("id").single();
+    if (error) { await sb.storage.from("photos").remove([imgPath]); if (vidPath) await sb.storage.from("videos").remove([vidPath]); return fail(error.message); }
+    location.hash = "#/p/" + data.id;
+  };
+}
+
+function pageEdit(){
+  if (!me) return (location.hash = "#/connexion");
+  app.innerHTML = `<h1>Modifier le profil</h1><p class="lead">Ces informations sont visibles par tout le monde.</p>
+  <form id="ef">
+    <div class="field" style="display:flex;align-items:center;gap:14px">${avatar(me, true)}<label class="btn ghost small" for="efa">Changer la photo</label><input id="efa" type="file" accept="image/*" class="sr"></div>
+    <div class="field"><label for="efu">Nom d'utilisateur</label><input id="efu" value="${esc(me.username)}" maxlength="24" pattern="[a-z0-9_.]{3,24}" required><small>3 à 24 caractères : lettres minuscules, chiffres, point ou tiret bas.</small></div>
+    <div class="field"><label for="efn">Nom affiché</label><input id="efn" value="${esc(me.full_name||"")}" maxlength="60"></div>
+    <div class="field"><label for="efb">Bio</label><textarea id="efb" maxlength="200">${esc(me.bio||"")}</textarea></div>
+    <div id="emsg"></div><button class="btn">Enregistrer</button>
+  </form>`;
+  let avatarUrl = me.avatar_url;
+  document.getElementById("efa").onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const b = await resizeImage(f, 400); const path = `${me.id}/avatar-${Date.now()}.jpg`;
+      const up = await sb.storage.from("photos").upload(path, b, { contentType:"image/jpeg" });
+      if (up.error) throw up.error;
+      avatarUrl = photoUrl(path);
+      document.querySelector("#ef .av").outerHTML = `<img class="av big" src="${esc(avatarUrl)}" alt="">`;
+    } catch (err) { document.getElementById("emsg").innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+  };
+  document.getElementById("ef").onsubmit = async (e) => {
+    e.preventDefault();
+    const upd = { username: document.getElementById("efu").value.trim().toLowerCase(), full_name: document.getElementById("efn").value.trim() || null, bio: document.getElementById("efb").value.trim() || null, avatar_url: avatarUrl };
+    const { error } = await sb.from("profiles").update(upd).eq("id", me.id);
+    const m = document.getElementById("emsg");
+    if (error) m.innerHTML = `<p class="err">${error.code === "23505" ? "Ce nom d'utilisateur est déjà pris." : esc(error.message)}</p>`;
+    else { Object.assign(me, upd); nav(); m.innerHTML = `<p class="ok">Profil enregistré.</p>`; setTimeout(() => location.hash = "#/u/" + me.username, 700); }
+  };
+}
+
+function pageWelcome(){
+  app.innerHTML = `<section class="welcome">
+    <div class="hero">Vos photos,<br><em>dans l'ordre.</em></div>
+    <ul><li>Un fil chronologique : vous voyez tout ce que publient les comptes que vous suivez.</li><li>Les photos d'abord, sans publicité.</li><li>Un repère « vous avez tout vu » pour savoir quand s'arrêter.</li><li>Si une publication est masquée, son auteur sait pourquoi.</li></ul>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="#/connexion?m=signup">Créer un compte</a><a class="btn ghost" href="#/decouvrir">Découvrir sans compte</a></div>
+  </section>`;
+}
+
+function pageAuth(){
+  if (me) return (location.hash = "#/");
+  let mode = new URLSearchParams(location.hash.split("?")[1] || "").get("m") === "signup" ? "signup" : "login";
+  const render = () => {
+    app.innerHTML = `<div style="max-width:420px;margin:24px auto"><h1 style="margin-bottom:14px">${mode==="signup"?"Créer un compte":"Se connecter"}</h1>
+    <div class="tabs"><button data-m="login" class="${mode==="login"?"on":""}">Se connecter</button><button data-m="signup" class="${mode==="signup"?"on":""}">Créer un compte</button></div>
+    <form id="af" class="card">
+      ${mode==="signup" ? `<div class="field"><label for="au">Nom d'utilisateur</label><input id="au" required maxlength="24" pattern="[a-z0-9_.]{3,24}" placeholder="ex. salma.photo" autocapitalize="none"><small>Lettres minuscules, chiffres, point ou tiret bas.</small></div>` : ""}
+      <div class="field"><label for="ae">E-mail</label><input id="ae" type="email" required autocomplete="email"></div>
+      <div class="field"><label for="ap">Mot de passe</label><input id="ap" type="password" required minlength="8" autocomplete="${mode==="signup"?"new-password":"current-password"}">${mode==="signup"?`<small>8 caractères minimum.</small>`:""}</div>
+      <div id="amsg"></div>
+      <button class="btn" style="width:100%">${mode==="signup"?"Créer mon compte":"Se connecter"}</button>
+      ${mode==="login" ? `<p style="text-align:center;margin-top:12px"><button type="button" id="forgot" style="color:var(--blue);font-weight:600">Mot de passe oublié ?</button></p>` : ""}
+    </form></div>`;
+    const fg = document.getElementById("forgot");
+    if (fg) fg.onclick = async () => {
+      const m = document.getElementById("amsg"); const email = document.getElementById("ae").value.trim();
+      if (!email) { m.innerHTML = `<p class="err">Écrivez d'abord votre e-mail dans le champ ci-dessus.</p>`; document.getElementById("ae").focus(); return; }
+      fg.disabled = true;
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + "/" });
+      m.innerHTML = error ? `<p class="err">${esc(error.message)}</p>`
+        : `<p class="ok">Si un compte existe avec ${esc(email)}, un lien pour choisir un nouveau mot de passe vient d'être envoyé. Ouvrez-le sur cet appareil.</p>`;
+      fg.disabled = false;
+    };
+    app.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { mode = b.dataset.m; render(); });
+    document.getElementById("af").onsubmit = async (e) => {
+      e.preventDefault(); const m = document.getElementById("amsg"); const btn = e.target.querySelector(".btn"); btn.disabled = true;
+      const email = document.getElementById("ae").value.trim(), password = document.getElementById("ap").value;
+      if (mode === "signup") {
+        const username = document.getElementById("au").value.trim().toLowerCase();
+        const { data: taken } = await sb.from("profiles").select("id").eq("username", username).maybeSingle();
+        if (taken) { m.innerHTML = `<p class="err">Ce nom d'utilisateur est déjà pris.</p>`; btn.disabled = false; return; }
+        const { data, error } = await sb.auth.signUp({ email, password, options: { data: { username }, emailRedirectTo: location.origin } });
+        if (error) { m.innerHTML = `<p class="err">${esc(error.message)}</p>`; btn.disabled = false; return; }
+        if (!data.session) m.innerHTML = `<p class="ok">Compte créé. Ouvrez l'e-mail de confirmation envoyé à ${esc(email)}, puis revenez vous connecter.</p>`;
+      } else {
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) { m.innerHTML = `<p class="err">${error.message.includes("Email not confirmed") ? "Confirmez d'abord votre e-mail avec le lien reçu." : "E-mail ou mot de passe incorrect."}</p>`; btn.disabled = false; }
+      }
+    };
+  };
+  render();
+}
+
+let recovery = false;
+function pageNewPassword(){
+  app.innerHTML = `<div style="max-width:420px;margin:24px auto"><h1 style="margin-bottom:6px">Nouveau mot de passe</h1><p class="lead">Choisissez un nouveau mot de passe pour votre compte.</p>
+  <form id="npf" class="card">
+    <div class="field"><label for="np1">Nouveau mot de passe</label><input id="np1" type="password" required minlength="8" autocomplete="new-password"><small>8 caractères minimum.</small></div>
+    <div class="field"><label for="np2">Confirmer</label><input id="np2" type="password" required minlength="8" autocomplete="new-password"></div>
+    <div id="npmsg"></div><button class="btn" style="width:100%">Enregistrer le mot de passe</button>
+  </form></div>`;
+  document.getElementById("npf").onsubmit = async (e) => {
+    e.preventDefault(); const m = document.getElementById("npmsg");
+    const a = document.getElementById("np1").value, b = document.getElementById("np2").value;
+    if (a !== b) { m.innerHTML = `<p class="err">Les deux mots de passe ne sont pas identiques.</p>`; return; }
+    const { error } = await sb.auth.updateUser({ password: a });
+    if (error) { m.innerHTML = `<p class="err">${esc(error.message)}</p>`; return; }
+    recovery = false; m.innerHTML = `<p class="ok">Mot de passe enregistré. Vous êtes connecté.</p>`;
+    setTimeout(() => { if (location.hash === "#/" || location.hash === "") route(); else location.hash = "#/"; }, 900);
+  };
+}
+
+/* ---------- recherche, notifications, enregistrés ---------- */
+const likeEsc = (q) => q.replace(/[\\%_]/g, c => "\\" + c);
+async function pageSearch(){
+  const q = (new URLSearchParams(location.hash.split("?")[1] || "").get("q") || "").trim().slice(0, 60);
+  app.innerHTML = `<h1>Recherche</h1>
+    <form class="sform" id="sf" role="search"><label class="sr" for="sq">Rechercher</label><input id="sq" type="search" value="${esc(q)}" placeholder="Compte, mot ou #thème" maxlength="60"><button class="btn">Chercher</button></form><div id="res"></div>`;
+  document.getElementById("sf").onsubmit = (e) => { e.preventDefault(); const v = document.getElementById("sq").value.trim(); location.hash = "#/recherche" + (v ? "?q=" + encodeURIComponent(v) : ""); };
+  const res = document.getElementById("res");
+  if (q.length < 2) { res.innerHTML = `<p class="lead">Écrivez au moins 2 caractères.</p>`; return; }
+  const pat = "%" + likeEsc(q) + "%";
+  const [u1, u2, ps] = await Promise.all([
+    sb.from("profiles").select("id,username,full_name,avatar_url").ilike("username", pat).limit(10),
+    sb.from("profiles").select("id,username,full_name,avatar_url").ilike("full_name", pat).limit(10),
+    sb.from("posts_feed").select("id,image_path,username").eq("hidden", false).ilike("caption", pat).order("created_at", { ascending:false }).limit(30)
+  ]);
+  const seen = new Set(); const users = [...(u1.data||[]), ...(u2.data||[])].filter(u => !seen.has(u.id) && seen.add(u.id)).slice(0, 10);
+  const posts = ps.data || [];
+  if (!users.length && !posts.length) { res.innerHTML = `<div class="empty"><b>Aucun résultat pour « ${esc(q)} ».</b>Essayez un autre mot.</div>`; return; }
+  res.innerHTML = (users.length ? `<h2 style="font-size:18px;margin:6px 0">Comptes</h2><div class="ulist">${users.map(u => `<a href="#/u/${esc(u.username)}">${avatar(u)}<span><b>${esc(u.full_name || u.username)}</b><small>@${esc(u.username)}</small></span></a>`).join("")}</div>` : "")
+    + (posts.length ? `<h2 style="font-size:18px;margin:16px 0 8px">Publications</h2><div class="grid">${posts.map(p => `<a href="#/p/${p.id}"><img src="${esc(photoUrl(p.image_path))}" alt="Photo de ${esc(p.username)}" loading="lazy"></a>`).join("")}</div>` : "");
+}
+
+async function pageNotifs(){
+  if (!me) return (location.hash = "#/connexion");
+  app.innerHTML = `<h1>Notifications</h1><p class="lead">Ce qui s'est passé autour de vos publications.</p><div id="nl"><p class="lead">Chargement…</p></div>`;
+  const { data, error } = await sb.from("notifications").select("id,type,post_id,read,created_at,actor:profiles!notifications_actor_id_fkey(username,avatar_url,full_name),post:posts(image_path)")
+    .eq("user_id", me.id).order("created_at", { ascending:false }).limit(50);
+  const nl = document.getElementById("nl");
+  if (error) { nl.innerHTML = `<p class="err">${esc(error.message)}</p>`; return; }
+  if (!data.length) { nl.innerHTML = `<div class="empty"><b>Rien pour l'instant.</b>Vous serez prévenu(e) des mentions J'aime, des commentaires et des nouveaux abonnés.</div>`; return; }
+  const TXT = { like: "a aimé votre publication", comment: "a commenté votre publication", follow: "s'est abonné(e) à votre compte" };
+  nl.innerHTML = data.map(n => {
+    const a = n.actor || { username: "?" };
+    const href = n.post_id ? `#/p/${n.post_id}` : `#/u/${esc(a.username)}`;
+    return `<a class="notif ${n.read ? "" : "new"}" href="${href}">${avatar(a)}<span class="t"><b>${esc(a.username)}</b> ${TXT[n.type] || ""}<small>${ago(n.created_at)}</small></span>${n.post && n.post.image_path ? `<img class="th" src="${esc(photoUrl(n.post.image_path))}" alt="">` : ""}</a>`;
+  }).join("");
+  if (data.some(n => !n.read)) { await sb.from("notifications").update({ read: true }).eq("user_id", me.id).eq("read", false); unread = 0; nav(); }
+}
+
+async function pageSaved(){
+  if (!me) return (location.hash = "#/connexion");
+  app.innerHTML = `<h1>Enregistrés</h1><p class="lead">Les publications que vous avez gardées. Vous seul(e) les voyez.</p><div id="sl"></div>`;
+  const { data, error } = await sb.from("saved_posts").select("post_id,created_at").eq("user_id", me.id).order("created_at", { ascending:false }).limit(60);
+  const sl = document.getElementById("sl");
+  if (error) { sl.innerHTML = `<p class="err">${esc(error.message)}</p>`; return; }
+  if (!data.length) { sl.innerHTML = `<div class="empty"><b>Rien d'enregistré.</b>Touchez le marque-page sous une publication pour la retrouver ici.<br><a class="btn" href="#/decouvrir">Découvrir</a></div>`; return; }
+  const { data: ps } = await sb.from("posts_feed").select("id,image_path,username").in("id", data.map(d => d.post_id)).eq("hidden", false);
+  const by = new Map((ps || []).map(p => [p.id, p]));
+  const list = data.map(d => by.get(d.post_id)).filter(Boolean);
+  sl.innerHTML = list.length ? `<div class="grid">${list.map(p => `<a href="#/p/${p.id}"><img src="${esc(photoUrl(p.image_path))}" alt="Photo de ${esc(p.username)}" loading="lazy"></a>`).join("")}</div>` : `<div class="empty"><b>Ces publications ne sont plus disponibles.</b></div>`;
+}
+
+/* ---------- stories ---------- */
+async function loadStories(ids){
+  const bar = document.getElementById("sbar"); if (!bar) return;
+  const { data } = await sb.from("stories").select("id,user_id,image_path,created_at,profiles(username,avatar_url,full_name)")
+    .in("user_id", ids).gt("expires_at", new Date().toISOString()).order("created_at", { ascending:true });
+  const groups = new Map();
+  for (const st of (data || [])) { if (!groups.has(st.user_id)) groups.set(st.user_id, { user: st.profiles, uid: st.user_id, items: [] }); groups.get(st.user_id).items.push(st); }
+  const seenKey = "lqta_stories_seen_" + me.id; let seen = {}; try { seen = JSON.parse(localStorage.getItem(seenKey) || "{}"); } catch {}
+  const order = [...groups.values()].sort((a, b) => (a.uid === me.id ? -1 : b.uid === me.id ? 1 : 0));
+  bar.innerHTML = `<label class="sb" for="sfile" style="cursor:pointer"><span class="ring add">${ICON.plus}</span><span class="n">Votre story</span></label><input id="sfile" type="file" accept="image/*" class="sr">`
+    + order.map((g, i) => { const last = g.items[g.items.length - 1].id; return `<button class="sb" data-g="${i}"><span class="ring ${seen[g.uid] >= last ? "seen" : ""}">${avatar(g.user)}</span><span class="n">${g.uid === me.id ? "Moi" : esc(g.user.username)}</span></button>`; }).join("");
+  document.getElementById("sfile").onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const b = await resizeImage(f, 1080); const path = `${me.id}/story-${Date.now()}.jpg`;
+      const up = await sb.storage.from("photos").upload(path, b, { contentType:"image/jpeg" }); if (up.error) throw up.error;
+      const { error } = await sb.from("stories").insert({ user_id: me.id, image_path: path }); if (error) throw error;
+      loadStories(ids);
+    } catch (err) { bar.insertAdjacentHTML("afterend", `<p class="err">${esc(err.message)}</p>`); }
+  };
+  bar.querySelectorAll("[data-g]").forEach(b => b.onclick = () => openStories(order, Number(b.dataset.g), seenKey, () => loadStories(ids)));
+}
+function openStories(groups, gi, seenKey, onDone){
+  let ii = 0, timer = null;
+  const ov = document.createElement("div"); ov.className = "sv"; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-label", "Story");
+  document.body.appendChild(ov); document.body.style.overflow = "hidden";
+  function close(){ clearTimeout(timer); ov.remove(); document.body.style.overflow = ""; document.removeEventListener("keydown", key); onDone && onDone(); }
+  function key(e){ if (e.key === "Escape") close(); else if (e.key === "ArrowRight") next(); else if (e.key === "ArrowLeft") prev(); }
+  document.addEventListener("keydown", key);
+  function next(){ const g = groups[gi]; if (ii < g.items.length - 1) { ii++; show(); } else if (gi < groups.length - 1) { gi++; ii = 0; show(); } else close(); }
+  function prev(){ if (ii > 0) { ii--; show(); } else if (gi > 0) { gi--; ii = 0; show(); } }
+  function show(){
+    clearTimeout(timer);
+    const g = groups[gi], st = g.items[ii];
+    try { const seen = JSON.parse(localStorage.getItem(seenKey) || "{}"); seen[g.uid] = Math.max(seen[g.uid] || 0, st.id); localStorage.setItem(seenKey, JSON.stringify(seen)); } catch {}
+    ov.innerHTML = `<div class="bars">${g.items.map((_, k) => `<i><b style="width:${k < ii ? 100 : 0}%"></b></i>`).join("")}</div>
+      <div class="hd">${avatar(g.user)}<span>${esc(g.user.username)} <small>${ago(st.created_at)}</small></span><button aria-label="Fermer" data-x>×</button></div>
+      <img src="${esc(photoUrl(st.image_path))}" alt="Story de ${esc(g.user.username)}">
+      <button class="tap l" aria-label="Précédente" data-p></button><button class="tap r" aria-label="Suivante" data-n></button>
+      ${g.uid === me.id ? `<button class="del" data-d>Supprimer cette story</button>` : ""}`;
+    ov.querySelector("[data-x]").onclick = close; ov.querySelector("[data-p]").onclick = prev; ov.querySelector("[data-n]").onclick = next;
+    const d = ov.querySelector("[data-d]");
+    if (d) d.onclick = async () => { clearTimeout(timer); if (!confirm("Supprimer cette story ?")) { show(); return; }
+      const { error } = await sb.from("stories").delete().eq("id", st.id);
+      if (error) { show(); return; }
+      await sb.storage.from("photos").remove([st.image_path]); g.items.splice(ii, 1);
+      if (!g.items.length) { groups.splice(gi, 1); gi = Math.min(gi, groups.length - 1); ii = 0; } else ii = Math.min(ii, g.items.length - 1);
+      if (!groups.length) return close(); show(); };
+    const fill = ov.querySelectorAll(".bars i b")[ii]; fill.style.transition = "width 5s linear"; requestAnimationFrame(() => requestAnimationFrame(() => fill.style.width = "100%"));
+    timer = setTimeout(next, 5000);
+  }
+  show();
+}
+
+/* ---------- messages privés ---------- */
+async function pageMessages(){
+  if (!me) return (location.hash = "#/connexion");
+  app.innerHTML = `<h1>Messages</h1><p class="lead">Vous pouvez écrire aux comptes que vous suivez ou qui vous suivent.</p><div id="cv"><p class="lead">Chargement…</p></div>`;
+  const { data, error } = await sb.from("messages").select("sender_id,recipient_id,body,created_at,read_at").order("created_at", { ascending:false }).limit(300);
+  const cv = document.getElementById("cv");
+  if (error) { cv.innerHTML = `<p class="err">${esc(error.message)}</p>`; return; }
+  const by = new Map();
+  for (const m of data) { const o = m.sender_id === me.id ? m.recipient_id : m.sender_id; if (!by.has(o)) by.set(o, { last: m, unread: 0 }); if (m.recipient_id === me.id && !m.read_at) by.get(o).unread++; }
+  if (!by.size) { cv.innerHTML = `<div class="empty"><b>Aucune conversation.</b>Ouvrez le profil d'un compte et touchez « Message ».<br><a class="btn" href="#/decouvrir">Découvrir</a></div>`; return; }
+  const { data: ps } = await sb.from("profiles").select("id,username,full_name,avatar_url").in("id", [...by.keys()]);
+  const pm = new Map((ps || []).map(p => [p.id, p]));
+  cv.innerHTML = `<div class="conv">${[...by.entries()].filter(([id]) => pm.has(id)).map(([id, c]) => { const u = pm.get(id);
+    return `<a href="#/m/${esc(u.username)}">${avatar(u)}<span class="t"><b>${esc(u.full_name || u.username)}</b><span class="${c.unread ? "u" : ""}">${c.last.sender_id === me.id ? "Vous : " : ""}${esc(c.last.body)}</span></span>${c.unread ? `<i class="dot" aria-label="${c.unread} non lus"></i>` : ""}</a>`; }).join("")}</div>`;
+}
+
+async function pageThread(username){
+  if (!me) return (location.hash = "#/connexion");
+  const { data: u } = await sb.from("profiles").select("id,username,full_name,avatar_url").eq("username", username).maybeSingle();
+  if (!u || u.id === me.id) { app.innerHTML = `<div class="empty"><b>Conversation impossible.</b><a class="btn" href="#/messages">Retour</a></div>`; return; }
+  app.innerHTML = `<p style="margin-bottom:8px"><a href="#/messages" style="color:var(--blue);font-weight:600">← Messages</a></p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">${avatar(u)}<a href="#/u/${esc(u.username)}"><b>${esc(u.full_name || u.username)}</b></a></div>
+    <div class="thread" id="th" aria-live="polite"></div><div id="tm"></div>
+    <form class="mform" id="mf"><label class="sr" for="mt">Votre message</label><input id="mt" maxlength="1000" placeholder="Écrire un message…" autocomplete="off"><button class="btn">Envoyer</button></form>`;
+  const th = document.getElementById("th"); let lastKey = "";
+  async function load(){
+    const { data, error } = await sb.from("messages").select("id,sender_id,body,created_at,read_at")
+      .or(`and(sender_id.eq.${me.id},recipient_id.eq.${u.id}),and(sender_id.eq.${u.id},recipient_id.eq.${me.id})`).order("created_at", { ascending:true }).limit(200);
+    if (error) { document.getElementById("tm").innerHTML = `<p class="err">${esc(error.message)}</p>`; return; }
+    const key = data.length + ":" + (data.length ? data[data.length-1].id : 0);
+    if (key !== lastKey) {
+      lastKey = key;
+      th.innerHTML = data.length ? data.map(m => `<div class="bub ${m.sender_id === me.id ? "me" : ""}">${esc(m.body)}<small>${ago(m.created_at)}</small></div>`).join("") : `<p class="lead">Dites bonjour 👋</p>`;
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+    if (data.some(m => m.sender_id === u.id && !m.read_at)) { await sb.from("messages").update({ read_at: new Date().toISOString() }).eq("recipient_id", me.id).eq("sender_id", u.id).is("read_at", null); refreshUnread(); }
+  }
+  await load();
+  clearInterval(poll); poll = setInterval(() => { if (!document.hidden && location.hash.startsWith("#/m/")) load(); }, 5000);
+  document.getElementById("mf").onsubmit = async (e) => {
+    e.preventDefault(); const inp = document.getElementById("mt"), v = inp.value.trim(); if (!v) return;
+    const btn = e.target.querySelector("button"); btn.disabled = true;
+    const { error } = await sb.from("messages").insert({ sender_id: me.id, recipient_id: u.id, body: v });
+    btn.disabled = false;
+    if (error) { document.getElementById("tm").innerHTML = `<p class="err">${error.code === "42501" ? "Vous ne pouvez écrire qu'aux comptes que vous suivez ou qui vous suivent." : esc(error.message)}</p>`; return; }
+    document.getElementById("tm").innerHTML = ""; inp.value = ""; load();
+  };
+}
+
+/* ---------- reels (vidéos courtes) ---------- */
+async function pageReels(){
+  app.innerHTML = `<h1>Reels</h1><p class="lead">Vidéos courtes, de la plus récente à la plus ancienne.</p><div class="reels" id="rl" tabindex="0" aria-label="Vidéos"></div>`;
+  const rl = document.getElementById("rl");
+  const { data, error } = await sb.from("posts_feed").select("*").eq("hidden", false).not("video_path", "is", null).order("created_at", { ascending:false }).limit(20);
+  if (error) { rl.outerHTML = `<p class="err">${esc(error.message)}</p>`; return; }
+  if (!data.length) { rl.outerHTML = `<div class="empty"><b>Aucune vidéo pour l'instant.</b>Soyez la première personne à en publier une.<br>${me ? `<a class="btn" href="#/publier">Publier une vidéo</a>` : `<a class="btn" href="#/connexion">Créer un compte</a>`}</div>`; return; }
+  const liked = await likedSet(data.map(p => p.id));
+  rl.innerHTML = data.map(p => `<section class="reel" data-id="${p.id}">
+    <video src="${esc(videoUrl(p.video_path))}" poster="${esc(photoUrl(p.image_path))}" loop muted playsinline preload="metadata"></video>
+    <button class="rmute" aria-label="Activer le son">🔇</button>
+    <div class="rinfo"><a href="#/u/${esc(p.username)}"><b>@${esc(p.username)}</b></a><p>${p.caption ? tagLinks(p.caption) : ""}</p></div>
+    <div class="ract">
+      <button data-rl class="${liked.has(p.id) ? "liked" : ""}" aria-label="J'aime">${ICON.heart}<span>${p.like_count}</span></button>
+      <a href="#/p/${p.id}" aria-label="Commentaires">${ICON.cmt}<span>${p.comment_count}</span></a>
+    </div></section>`).join("");
+  const vids = [...rl.querySelectorAll(".reel")];
+  const io = new IntersectionObserver((es) => es.forEach(e => { const v = e.target.querySelector("video"); if (e.isIntersecting && e.intersectionRatio > .6) v.play().catch(() => {}); else v.pause(); }), { root: rl, threshold: [0, .6, 1] });
+  vids.forEach(r => {
+    io.observe(r); const v = r.querySelector("video"), mb = r.querySelector(".rmute");
+    mb.onclick = () => { v.muted = !v.muted; mb.textContent = v.muted ? "🔇" : "🔊"; mb.setAttribute("aria-label", v.muted ? "Activer le son" : "Couper le son"); };
+    v.onclick = () => v.paused ? v.play() : v.pause();
+    const lb = r.querySelector("[data-rl]"), id = Number(r.dataset.id);
+    lb.onclick = async () => {
+      if (!me) return (location.hash = "#/connexion");
+      const on = lb.classList.toggle("liked"); const n = lb.querySelector("span"); n.textContent = Number(n.textContent) + (on ? 1 : -1);
+      const { error } = on ? await sb.from("likes").insert({ user_id: me.id, post_id: id }) : await sb.from("likes").delete().eq("user_id", me.id).eq("post_id", id);
+      if (error) { lb.classList.toggle("liked"); n.textContent = Number(n.textContent) + (on ? -1 : 1); }
+    };
+  });
+}
+
+/* ---------- routeur ---------- */
+
+
+async function route(){
+  nav(); window.scrollTo(0, 0); clearInterval(poll);
+  if (recovery) return pageNewPassword();
+  if (location.hash.includes("access_token") || location.hash.includes("error_description")) history.replaceState(null, "", location.pathname + "#/");
+  const h = (location.hash || "#/").split("?")[0];
+  let m;
+  if (h === "#/" || h === "#") return pageFeed();
+  if (h === "#/decouvrir") return pageDiscover();
+  if (h === "#/publier") return pagePublish();
+  if (h === "#/modifier") return pageEdit();
+  if (h === "#/connexion") return pageAuth();
+  if (h === "#/recherche") return pageSearch();
+  if (h === "#/notifications") return pageNotifs();
+  if (h === "#/enregistres") return pageSaved();
+  if (h === "#/messages") return pageMessages();
+  if (h === "#/reels") return pageReels();
+  if ((m = h.match(/^#\/m\/([a-z0-9_.]+)$/))) return pageThread(m[1]);
+  if ((m = h.match(/^#\/p\/(\d+)$/))) return pagePost(Number(m[1]));
+  if ((m = h.match(/^#\/u\/([a-z0-9_.]+)$/))) return pageProfile(m[1]);
+  app.innerHTML = `<div class="empty"><b>Page introuvable.</b><a class="btn" href="#/">Retour à l'accueil</a></div>`;
+}
+
+async function loadMe(session){
+  if (!session) { me = null; mySaved = new Set(); unread = 0; msgUnread = 0; return; }
+  const { data } = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+  me = data || { id: session.user.id, username: "moi" };
+  const { data: sv } = await sb.from("saved_posts").select("post_id").eq("user_id", me.id).limit(1000);
+  mySaved = new Set((sv || []).map(r => r.post_id));
+  refreshUnread();
+}
+setInterval(() => { if (me && !document.hidden) refreshUnread(); }, 60000);
+let booted = false;
+// Ne pas appeler Supabase directement dans le callback (verrou d'auth) : on diffère.
+sb.auth.onAuthStateChange((ev, session) => {
+  if (ev === "PASSWORD_RECOVERY") recovery = true;
+  setTimeout(async () => {
+    if (ev === "PASSWORD_RECOVERY") { await loadMe(session); booted = true; if (location.hash.includes("access_token")) history.replaceState(null, "", location.pathname + "#/"); route(); return; }
+    const prevId = me && me.id;
+    await loadMe(session);
+    if (!booted) { booted = true; route(); return; }
+    if ((me && me.id) !== prevId) {
+      const atHome = location.hash === "#/" || location.hash === "";
+      if (!atHome && (location.hash.startsWith("#/connexion") || !me)) { location.hash = "#/"; return; } // le hashchange relance route()
+      route();
+    }
+  }, 0);
+});
+window.addEventListener("hashchange", () => { if (booted) route(); });
+</script>
+</body>
+</html>

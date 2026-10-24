@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - TL PED Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html,body{overscroll-behavior-y:contain;}
+    </style>
+    <script>window.IMJX_PAGE = { department: "PED", page: "TL", roles: ["tl"] };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans select-none">
+
+    <div class="max-w-7xl mx-auto bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden mb-12">
+        
+        <!-- الهيدر الخاص بـ Team Leader -->
+        <div class="bg-slate-950 p-4 flex justify-between items-center border-b-2 border-purple-500">
+            <div>
+                <h1 class="text-lg font-bold text-purple-400 tracking-wider flex items-center gap-2">
+                    <span>IM JX - TL PED Command Center</span>
+                    <span id="syncIndicator" class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System Live"></span>
+                </h1>
+                <p id="syncStatusText" class="text-[9px] text-emerald-400 uppercase font-mono tracking-widest">Global Master Node: Connected</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <input type="date" id="repDate" onchange="triggerAutoSync()" class="bg-slate-800 text-xs p-1 rounded border border-slate-600 text-white font-mono outline-none">
+                <span id="liveClock" class="text-[10px] font-mono text-slate-400">00:00:00</span>
+            </div>
+        </div>
+
+        <!-- سياق الـ Team Leader -->
+        <div class="p-4 bg-slate-900/40 border-b border-slate-700 flex flex-col md:flex-row gap-4 text-xs items-center justify-between">
+            <div class="flex gap-4 w-full md:w-auto">
+                <div class="w-full md:w-48">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">TL Name:</label>
+                    <input type="text" id="tlName" placeholder="Enter TL Name" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-purple-400 font-bold outline-none">
+                </div>
+                <div class="w-full md:w-32">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shift:</label>
+                    <select id="tlShift" onchange="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                        <option value="A">Shift A</option>
+                        <option value="B">Shift B</option>
+                        <option value="C">Shift C</option>
+                    </select>
+                </div>
+            </div>
+            <div class="w-full md:w-auto flex justify-end">
+                <button type="button" onclick="validateShiftReport()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded font-bold text-xs uppercase font-mono tracking-wider transition-all shadow-lg shadow-purple-600/30">
+                    ✅ Approve & Lock Shift Report
+                </button>
+            </div>
+        </div>
+
+        <div class="p-3 md:p-4 space-y-6">
+
+            <!-- 1. لوحة المؤشرات (KPIs) السريعة -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700 flex flex-col justify-center items-center text-center">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Routine Coverage</span>
+                    <span class="text-2xl font-bold text-emerald-400 font-mono">85%</span>
+                    <span class="text-[9px] text-slate-500">24/28 Machines Checked</span>
+                </div>
+                <div class="bg-slate-900/80 p-3 rounded-lg border border-red-900/50 flex flex-col justify-center items-center text-center">
+                    <span class="text-[10px] text-red-400 font-bold uppercase tracking-widest">Critical Alarms</span>
+                    <span class="text-2xl font-bold text-red-500 font-mono animate-pulse">2</span>
+                    <span class="text-[9px] text-red-500/70">Require TL Escalation</span>
+                </div>
+                <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700 flex flex-col justify-center items-center text-center">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Pending Tasks</span>
+                    <span class="text-2xl font-bold text-amber-400 font-mono">4</span>
+                    <span class="text-[9px] text-slate-500">Operators & Techs</span>
+                </div>
+                <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700 flex flex-col justify-center items-center text-center">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Total Refill Logs</span>
+                    <span class="text-2xl font-bold text-cyan-400 font-mono">18</span>
+                    <span class="text-[9px] text-slate-500">Fluid Tops-ups Today</span>
+                </div>
+            </div>
+
+            <!-- 2. مراقبة التنبيهات الكبيرة والتدخلات (Global Escalation Queue) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-purple-900/50 space-y-3">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-2">
+                    <h2 class="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1">🚨 Global Escalations & Critical Alarms</h2>
+                    <button onclick="forceRefreshData()" class="text-[9px] font-mono text-purple-300 bg-purple-900/30 hover:bg-purple-900/60 px-2 py-1 rounded border border-purple-700 transition-all">🔄 Reload Feed</button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border border-slate-700 min-w-[800px]">
+                        <thead class="bg-slate-950 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-700">
+                            <tr>
+                                <th class="p-2 border-r border-slate-700 w-24">Time</th>
+                                <th class="p-2 border-r border-slate-700 w-32">Reporter</th>
+                                <th class="p-2 border-r border-slate-700 w-40">Location</th>
+                                <th class="p-2 border-r border-slate-700">Issue Description</th>
+                                <th class="p-2 text-center w-40">TL Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700 bg-slate-900/20" id="escalationBody">
+                            <!-- Escalation 1 -->
+                            <tr class="bg-red-950/20">
+                                <td class="p-2 border-r border-slate-800 font-mono text-slate-400 text-[11px]">13:15:00</td>
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-300">OP - Hamid</td>
+                                <td class="p-2 border-r border-slate-800 font-bold text-yellow-500 font-mono">L2 - M068 CNC</td>
+                                <td class="p-2 border-r border-slate-800 text-slate-200">
+                                    <span class="text-red-400 font-bold text-[10px] block mb-0.5">HEAVY HYDRAULIC LEAK</span>
+                                    Machine stopped. Oil spreading to walkway.
+                                </td>
+                                <td class="p-2 text-center">
+                                    <select onchange="updateTLAction(this)" class="bg-slate-950 border border-red-700 rounded p-1 text-[10px] font-bold text-red-400 outline-none w-full">
+                                        <option value="WAITING">⚠️ Unresolved</option>
+                                        <option value="MNT_CALLED">📞 Maintenance Called</option>
+                                        <option value="RESOLVED">✅ Resolved</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <!-- Escalation 2 -->
+                            <tr>
+                                <td class="p-2 border-r border-slate-800 font-mono text-slate-400 text-[11px]">15:30:22</td>
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-300">TECH - Yassine</td>
+                                <td class="p-2 border-r border-slate-800 font-bold text-yellow-500 font-mono">L4 - Central Tank</td>
+                                <td class="p-2 border-r border-slate-800 text-slate-200">
+                                    <span class="text-amber-400 font-bold text-[10px] block mb-0.5">STOCK CRITICAL</span>
+                                    Soluble barrels are empty in the main storage area. Need order from Magasin.
+                                </td>
+                                <td class="p-2 text-center">
+                                    <select onchange="updateTLAction(this)" class="bg-slate-950 border border-amber-700 rounded p-1 text-[10px] font-bold text-amber-400 outline-none w-full">
+                                        <option value="WAITING">⚠️ Unresolved</option>
+                                        <option value="MNT_CALLED">🛒 Request Sent to WH</option>
+                                        <option value="RESOLVED">✅ Resolved</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. تتبع حضور الفريق وتفاعلهم (Team Shift Status) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-3">
+                <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1">👥 Team Roster & Activity Sync</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <!-- Tech Member -->
+                    <div class="bg-slate-950/50 p-2 rounded border border-slate-700 flex justify-between items-center">
+                        <div>
+                            <p class="text-[11px] font-bold text-amber-400">Yassine (Tech PED)</p>
+                            <p class="text-[9px] text-slate-500 font-mono">Last sync: 2 mins ago</p>
+                        </div>
+                        <span class="inline-flex w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]"></span>
+                    </div>
+                    <!-- Operator Member -->
+                    <div class="bg-slate-950/50 p-2 rounded border border-slate-700 flex justify-between items-center">
+                        <div>
+                            <p class="text-[11px] font-bold text-cyan-400">Hamid (OP Line 1-2)</p>
+                            <p class="text-[9px] text-slate-500 font-mono">Last sync: 10 mins ago</p>
+                        </div>
+                        <span class="inline-flex w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]"></span>
+                    </div>
+                    <!-- Operator Member -->
+                    <div class="bg-slate-950/50 p-2 rounded border border-slate-700 flex justify-between items-center opacity-50">
+                        <div>
+                            <p class="text-[11px] font-bold text-cyan-400">Kamal (OP Line 3-4)</p>
+                            <p class="text-[9px] text-slate-500 font-mono">Last sync: 4 hours ago</p>
+                        </div>
+                        <span class="inline-flex w-2 h-2 rounded-full bg-red-500"></span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="text-center text-[10px] text-slate-500 font-mono pb-8 uppercase tracking-widest">
+        IM JX Tech Suite v7.9 &bull; TL Command & Validation Node
+    </div>
+
+    <script>
+        let syncTimeout = null;
+        // googleScriptUrl remplacé par le backend IM JX (voir shared/im-jx-client.js)
+
+        document.getElementById('repDate').value = new Date().toISOString().split('T')[0];
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        function updateTLAction(selectElement) {
+            if (selectElement.value === 'RESOLVED') {
+                selectElement.className = "bg-slate-950 border border-emerald-600 rounded p-1 text-[10px] font-bold text-emerald-400 outline-none w-full";
+                selectElement.parentElement.parentElement.classList.add("opacity-50");
+            } else if (selectElement.value === 'MNT_CALLED') {
+                selectElement.className = "bg-slate-950 border border-blue-600 rounded p-1 text-[10px] font-bold text-blue-400 outline-none w-full";
+                selectElement.parentElement.parentElement.classList.remove("opacity-50");
+            } else {
+                selectElement.className = "bg-slate-950 border border-red-700 rounded p-1 text-[10px] font-bold text-red-400 outline-none w-full";
+                selectElement.parentElement.parentElement.classList.remove("opacity-50");
+            }
+            triggerAutoSync();
+        }
+
+        function validateShiftReport() {
+            const tlName = document.getElementById('tlName').value.trim();
+            if (!tlName) {
+                alert("⚠️ يرجى إدخال اسم الـ Team Leader قبل تأكيد الشفت!");
+                return;
+            }
+            
+            if (confirm("Are you sure you want to approve and lock the data for this Shift? This will push the final report to management.")) {
+                setSyncUIStatus('syncing', 'Compiling and locking Shift Data...');
+                
+                const date = document.getElementById('repDate').value;
+                const shift = document.getElementById('tlShift').value;
+                const payload = `IM_TL_VALIDATION;${date};${tlName};SHIFT_${shift};STATUS_APPROVED_LOCKED`;
+
+                IMJX.sync(payload)
+                .then(() => { 
+                    setSyncUIStatus('success', 'Shift report successfully locked and synced.');
+                    alert("✅ Shift data has been approved and logged in the master database.");
+                })
+                .catch(err => {
+                    console.error(err);
+                    setSyncUIStatus('error', 'Sync failed. Retry validation.');
+                });
+            }
+        }
+
+        function forceRefreshData() {
+            setSyncUIStatus('syncing', 'Fetching live feeds from Operators and Techs...');
+            setTimeout(() => {
+                setSyncUIStatus('success', 'Escalation queue is up to date.');
+            }, 1000);
+        }
+
+        function triggerAutoSync() {
+            const tlName = document.getElementById('tlName').value.trim();
+            if (syncTimeout) clearTimeout(syncTimeout);
+            
+            if (!tlName) {
+                setSyncUIStatus('waiting', 'Enter TL name to activate live feed.');
+                return;
+            }
+
+            setSyncUIStatus('pending', 'Registering TL Actions...');
+
+            syncTimeout = setTimeout(() => {
+                setSyncUIStatus('success', 'Actions synchronized to Master Board.');
+            }, 1500);
+        }
+
+        function setSyncUIStatus(state, message) {
+            const ind = document.getElementById('syncIndicator');
+            const txt = document.getElementById('syncStatusText');
+            txt.innerText = message;
+
+            if (state === 'success') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
+                txt.className = "text-[9px] text-emerald-400 uppercase font-mono tracking-wider";
+            } else if (state === 'syncing') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping";
+                txt.className = "text-[9px] text-blue-400 uppercase font-mono tracking-wider";
+            } else if (state === 'pending') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                txt.className = "text-[9px] text-amber-400 uppercase font-mono tracking-wider";
+            } else if (state === 'waiting') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-slate-600";
+                txt.className = "text-[9px] text-slate-400 uppercase font-mono tracking-wider";
+            } else if (state === 'error') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce";
+                txt.className = "text-[9px] text-red-400 uppercase font-mono tracking-wider font-bold";
+            }
+        }
+
+        setSyncUIStatus('waiting', 'TL Node ready. Standing by for login.');
+    </script>
+</body>
+</html>

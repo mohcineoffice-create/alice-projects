@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>IM JX - Maintenance Team Leader Node</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>html,body{overscroll-behavior-y:contain;}</style>
+    <script>window.IMJX_PAGE = { department: "MNT", page: "TL", roles: ["tl"] };</script>
+    <script src="/shared/im-jx-client.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-2 md:p-4 font-sans select-none">
+
+    <div class="max-w-6xl mx-auto bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden mb-12">
+        
+        <!-- الهيدر الرئيسي للوحة التحكم -->
+        <div class="bg-slate-950 p-4 flex justify-between items-center border-b-2 border-yellow-500">
+            <div>
+                <h1 class="text-lg font-bold text-yellow-500 tracking-wider flex items-center gap-2">
+                    <span>IM JX - Maintenance Team Leader Terminal</span>
+                    <span id="syncIndicator" class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System Live"></span>
+                </h1>
+                <p id="syncStatusText" class="text-[9px] text-emerald-400 uppercase font-mono tracking-widest">Maint Master Sync: Connected</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <input type="date" id="repDate" onchange="triggerAutoSync()" class="bg-slate-800 text-xs p-1 rounded border border-slate-600 text-white font-mono outline-none">
+                <span id="liveClock" class="text-[10px] font-mono text-slate-400">00:00:00</span>
+            </div>
+        </div>
+
+        <!-- سياق المسؤول والمعلومات العامة -->
+        <div class="p-4 bg-slate-900/40 border-b border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Maintenance TL Name:</label>
+                <input type="text" id="maintTlName" placeholder="Enter Supervisor Name" oninput="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-yellow-500 font-bold outline-none">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Current Shift:</label>
+                <select id="maintShift" onchange="triggerAutoSync()" class="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white font-bold outline-none">
+                    <option value="A">Shift A</option>
+                    <option value="B">Shift B</option>
+                    <option value="C">Shift C</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Maint Team Status:</label>
+                <div class="p-2 bg-slate-950 rounded border border-slate-700 text-emerald-400 font-mono font-bold flex justify-between items-center">
+                    <span>Techs Active on Field</span>
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-3 md:p-4 space-y-6">
+
+            <!-- 1. مراقبة الأعطال الحالية ف الخطوط (Mora9aba dyal Reclamations) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-3">
+                <h2 class="text-xs font-bold text-yellow-400 uppercase tracking-wider flex items-center gap-1">🚨 Live Production Reclamations & Machine Breakdown Status</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border border-slate-700 min-w-[700px]">
+                        <thead class="bg-slate-950 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-700">
+                            <tr>
+                                <th class="p-2 border-r border-slate-700 w-24">Line No</th>
+                                <th class="p-2 border-r border-slate-700 w-44">Target Machine</th>
+                                <th class="p-2 border-r border-slate-700 w-40">Failure Mode Category</th>
+                                <th class="p-2 border-r border-slate-700 w-28">Status Mode</th>
+                                <th class="p-2">Live Tech Comments / Operational Impact</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700 bg-slate-900/20">
+                            <!-- Line 1 Breakdown Monitoring -->
+                            <tr class="hover:bg-slate-900/40 transition-colors">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-300">Line 1</td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <input type="text" id="l1_mach" value="M042 (Spline Rolling)" oninput="triggerAutoSync()" class="w-full bg-slate-950/60 p-1 font-mono text-xs rounded border border-slate-800 outline-none text-yellow-400">
+                                </td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <select id="l1_cat" onchange="triggerAutoSync()" class="w-full bg-slate-950/60 p-1 text-xs rounded border border-slate-800 outline-none">
+                                        <option value="MECHANICAL">Mechanical Failure</option>
+                                        <option value="ELECTRICAL">Electrical / Sensor</option>
+                                        <option value="HYDRAULIC">Hydraulic Fault</option>
+                                        <option value="NONE">No active breakdown</option>
+                                    </select>
+                                </td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <select id="l1_state" onchange="updateRowColor(1); triggerAutoSync();" class="w-full bg-red-950/60 text-red-400 p-1 font-bold text-xs rounded border border-slate-800 outline-none">
+                                        <option value="LINE_STOP">🛑 LINE STOP</option>
+                                        <option value="RISK_RUN">⚠️ RISK / RUN</option>
+                                        <option value="CLEAR">✅ CLEAR / OK</option>
+                                    </select>
+                                </td>
+                                <td class="p-1">
+                                    <input type="text" id="l1_notes" placeholder="Waiting for tech diagnosis..." oninput="triggerAutoSync()" class="w-full bg-transparent p-1 font-mono text-slate-300 text-xs outline-none">
+                                </td>
+                            </tr>
+                            <!-- Line 2 Breakdown Monitoring -->
+                            <tr class="hover:bg-slate-900/40 transition-colors">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-300">Line 2</td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <input type="text" id="l2_mach" value="M068 (CNC Lathe)" oninput="triggerAutoSync()" class="w-full bg-slate-950/60 p-1 font-mono text-xs rounded border border-slate-800 outline-none text-yellow-400">
+                                </td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <select id="l2_cat" onchange="triggerAutoSync()" class="w-full bg-slate-950/60 p-1 text-xs rounded border border-slate-800 outline-none">
+                                        <option value="NONE">No active breakdown</option>
+                                        <option value="MECHANICAL">Mechanical Failure</option>
+                                        <option value="ELECTRICAL">Electrical / Sensor</option>
+                                        <option value="HYDRAULIC">Hydraulic Fault</option>
+                                    </select>
+                                </td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <select id="l2_state" onchange="updateRowColor(2); triggerAutoSync();" class="w-full bg-emerald-950/60 text-emerald-400 p-1 font-bold text-xs rounded border border-slate-800 outline-none">
+                                        <option value="CLEAR">✅ CLEAR / OK</option>
+                                        <option value="LINE_STOP">🛑 LINE STOP</option>
+                                        <option value="RISK_RUN">⚠️ RISK / RUN</option>
+                                    </select>
+                                </td>
+                                <td class="p-1">
+                                    <input type="text" id="l2_notes" placeholder="No alarms reported." oninput="triggerAutoSync()" class="w-full bg-transparent p-1 font-mono text-slate-300 text-xs outline-none">
+                                </td>
+                            </tr>
+                            <!-- Line 3 Breakdown Monitoring -->
+                            <tr class="hover:bg-slate-900/40 transition-colors">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-300">Line 3</td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <input type="text" id="l3_mach" value="M122 (Spline Rolling)" oninput="triggerAutoSync()" class="w-full bg-slate-950/60 p-1 font-mono text-xs rounded border border-slate-800 outline-none text-yellow-400">
+                                </td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <select id="l3_cat" onchange="triggerAutoSync()" class="w-full bg-slate-950/60 p-1 text-xs rounded border border-slate-800 outline-none">
+                                        <option value="NONE">No active breakdown</option>
+                                        <option value="MECHANICAL">Mechanical Failure</option>
+                                        <option value="ELECTRICAL">Electrical / Sensor</option>
+                                        <option value="HYDRAULIC">Hydraulic Fault</option>
+                                    </select>
+                                </td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <select id="l3_state" onchange="updateRowColor(3); triggerAutoSync();" class="w-full bg-emerald-950/60 text-emerald-400 p-1 font-bold text-xs rounded border border-slate-800 outline-none">
+                                        <option value="CLEAR">✅ CLEAR / OK</option>
+                                        <option value="LINE_STOP">🛑 LINE STOP</option>
+                                        <option value="RISK_RUN">⚠️ RISK / RUN</option>
+                                    </select>
+                                </td>
+                                <td class="p-1">
+                                    <input type="text" id="l3_notes" placeholder="Normal parameters." oninput="triggerAutoSync()" class="w-full bg-transparent p-1 font-mono text-slate-300 text-xs outline-none">
+                                </td>
+                            </tr>
+                            <!-- Line 4 Breakdown Monitoring -->
+                            <tr class="hover:bg-slate-900/40 transition-colors">
+                                <td class="p-2 border-r border-slate-800 font-bold text-slate-300">Line 4</td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <input type="text" id="l4_mach" value="Doosan CNC" oninput="triggerAutoSync()" class="w-full bg-slate-950/60 p-1 font-mono text-xs rounded border border-slate-800 outline-none text-yellow-400">
+                                </td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <select id="l4_cat" onchange="triggerAutoSync()" class="w-full bg-slate-950/60 p-1 text-xs rounded border border-slate-800 outline-none">
+                                        <option value="ELECTRICAL">Electrical / Sensor</option>
+                                        <option value="MECHANICAL">Mechanical Failure</option>
+                                        <option value="HYDRAULIC">Hydraulic Fault</option>
+                                        <option value="NONE">No active breakdown</option>
+                                    </select>
+                                </td>
+                                <td class="p-1 border-r border-slate-800">
+                                    <select id="l4_state" onchange="updateRowColor(4); triggerAutoSync();" class="w-full bg-amber-950/60 text-amber-400 p-1 font-bold text-xs rounded border border-slate-800 outline-none">
+                                        <option value="RISK_RUN">⚠️ RISK / RUN</option>
+                                        <option value="LINE_STOP">🛑 LINE STOP</option>
+                                        <option value="CLEAR">✅ CLEAR / OK</option>
+                                    </select>
+                                </td>
+                                <td class="p-1">
+                                    <input type="text" id="l4_notes" placeholder="Intermittent pressure cycle drops..." oninput="triggerAutoSync()" class="w-full bg-transparent p-1 font-mono text-slate-300 text-xs outline-none">
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 2. محرك توزيع المهام وإرسالها للتقنيين (Maint Task Dispatcher) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-4">
+                <h2 class="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1">📋 Dispatch Work Orders to Technicians Crew</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Production Line:</label>
+                        <select id="dispatchLine" class="w-full p-2 bg-slate-850 border border-slate-600 rounded text-white font-bold outline-none">
+                            <option value="LINE_1">Line 1</option>
+                            <option value="LINE_2">Line 2</option>
+                            <option value="LINE_3">Line 3</option>
+                            <option value="LINE_4">Line 4</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Assigned Technician Field:</label>
+                        <select id="dispatchTech" class="w-full p-2 bg-slate-850 border border-slate-600 rounded text-yellow-400 font-bold outline-none">
+                            <option value="TECH_MECHANICAL">Mechanical Specialist</option>
+                            <option value="TECH_ELECTRICAL">Electrical Tech Crew</option>
+                            <option value="TECH_AUTOMATION">Automation / Programming Expert</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Priority Strategy:</label>
+                        <select id="dispatchPriority" class="w-full p-2 bg-slate-850 border border-slate-600 rounded text-red-400 font-bold outline-none">
+                            <option value="CRITICAL_STOP">🚨 Critical / Breakdown Intervention</option>
+                            <option value="PREVENTIVE">⚙️ Preventive Maintenance Task</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Detailed Technical Instructions & Safety Notes:</label>
+                    <textarea id="dispatchText" rows="2" placeholder="Write the exact work order instructions for the technician..." class="w-full p-2 bg-slate-950 border border-slate-700 rounded text-slate-100 font-mono text-xs outline-none resize-none placeholder-slate-700"></textarea>
+                </div>
+
+                <button type="button" onclick="dispatchMaintTask()" id="btnDispatch" class="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-bold py-2 rounded text-xs uppercase border border-blue-500/40 tracking-wider transition-all">
+                    Transmit Task to Tech Node 📡
+                </button>
+            </div>
+
+            <!-- 3. بوابة التواصل وتصعيد التقارير مع الإدارة (Communication with Administration) -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-1">
+                    <h2 class="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">🏢 Administration Emergency Escalation Hub</h2>
+                    <span class="text-[9px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">Management Dashboard Feed</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Escalation Reason:</label>
+                        <select id="adminCategory" class="w-full p-2 bg-slate-850 border border-slate-600 rounded text-white font-bold outline-none">
+                            <option value="SPARE_PART_STOCKOUT">Critical Spare Part Stockout / Missing Component</option>
+                            <option value="MAJOR_BREAKDOWN_OVER2H">Major Breakdown exceeding 2 Hours MTTR</option>
+                            <option value="EXTERNAL_SUPPLIER_REQ">External Technical Supplier Request Needed</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Financial / Production Impact:</label>
+                        <select id="adminImpact" class="w-full p-2 bg-slate-850 border border-slate-600 rounded text-red-400 font-bold outline-none">
+                            <option value="HIGH_OEE_DROP">🛑 Severe OEE Loss / Shift Target at Risk</option>
+                            <option value="MODERATE">⚠️ Moderate Layout Adjustment</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Detailed Report to Plant Management:</label>
+                    <textarea id="adminText" rows="2" placeholder="Describe the escalation situation clearly for administration decision-making..." class="w-full p-2 bg-slate-950 border border-slate-700 rounded text-slate-100 font-mono text-xs outline-none resize-none placeholder-slate-700"></textarea>
+                </div>
+
+                <button type="button" onclick="sendAdminNotification()" id="btnAdmin" class="w-full bg-red-600/20 hover:bg-red-600/30 text-red-400 font-bold py-2 rounded text-xs uppercase border border-red-500/40 tracking-wider transition-all">
+                    Push Escalation to Plant Manager 📤
+                </button>
+            </div>
+
+            <!-- زر التصفير ومسح اللوحة -->
+            <div class="pt-2">
+                <button type="button" onclick="resetLeaderNode()" class="w-full bg-red-600/10 hover:bg-red-600/20 text-red-400 py-2 rounded-lg text-xs uppercase border border-red-500/20 transition-all font-mono">Reset Maintenance Master Node</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center text-[10px] text-slate-500 font-mono pb-8 uppercase tracking-widest">
+        IM JX Master Node v8.2 &bull; Maintenance Supervisor Control Center
+    </div>
+
+    <script>
+        let syncTimeout = null;
+        // googleScriptUrl remplacé par le backend IM JX (voir shared/im-jx-client.js)
+
+        // إعداد التاريخ والوقت الحي
+        document.getElementById('repDate').value = new Date().toISOString().split('T')[0];
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+        // تغيير مظهر خانة الحالة حسب الاختيار (Line Stop كتولي حمرا)
+        function updateRowColor(rowId) {
+            const stateSelect = document.getElementById(`l${rowId}_state`);
+            if (stateSelect.value === 'LINE_STOP') {
+                stateSelect.className = "w-full bg-red-950/60 text-red-400 p-1 font-bold text-xs rounded border border-slate-800 outline-none";
+            } else if (stateSelect.value === 'RISK_RUN') {
+                stateSelect.className = "w-full bg-amber-950/60 text-amber-400 p-1 font-bold text-xs rounded border border-slate-800 outline-none";
+            } else {
+                stateSelect.className = "w-full bg-emerald-950/60 text-emerald-400 p-1 font-bold text-xs rounded border border-slate-800 outline-none";
+            }
+        }
+
+        // 📦 تجميع حمولة تقرير المراقبة الماستر (Payload)
+        function buildTLMaintPayload(tlName) {
+            let parts = [];
+            parts.push("IM_MAINT_TL_NODE");
+            parts.push(document.getElementById('repDate').value);
+            parts.push(tlName);
+            parts.push(`SHIFT_${document.getElementById('maintShift').value}`);
+
+            let lineLogs = [];
+            for(let i = 1; i <= 4; i++) {
+                const mach = document.getElementById(`l${i}_mach`).value || "NoMachine";
+                const cat = document.getElementById(`l${i}_cat`).value;
+                const state = document.getElementById(`l${i}_state`).value;
+                const notes = document.getElementById(`l${i}_notes`).value.trim() || "NoComments";
+                lineLogs.push(`[L${i}|Mach:${mach}|Cat:${cat}|State:${state}|Notes:${notes}]`);
+            }
+            parts.push(`GRID_STATUS:${lineLogs.join(',')}`);
+
+            return parts.join(";");
+        }
+
+        // 🔄 محرك المزامنة اللحظية الذكية
+        function triggerAutoSync() {
+            const tlName = document.getElementById('maintTlName').value.trim();
+            if (syncTimeout) clearTimeout(syncTimeout);
+            
+            if (!tlName) {
+                setSyncUIStatus('waiting', 'Enter Maintenance TL name to bridge live cloud feed.');
+                return;
+            }
+
+            setSyncUIStatus('pending', 'Modifications detected... Upload pending');
+
+            syncTimeout = setTimeout(() => {
+                executeBackgroundSync(tlName);
+            }, 1500);
+        }
+
+        function executeBackgroundSync(tlName) {
+            setSyncUIStatus('syncing', 'Updating maintenance live grid tracking database...');
+            const payload = buildTLMaintPayload(tlName);
+
+            IMJX.sync(payload)
+            .then(() => {
+                setSyncUIStatus('success', 'Master maintenance registry synced seamlessly');
+            })
+            .catch(err => {
+                console.error(err);
+                setSyncUIStatus('error', 'Network loss. Auto-retry standby...');
+            });
+        }
+
+        // 📡 بث مهمة للتقنيين على نظام العمل
+        function dispatchMaintTask() {
+            const tlName = document.getElementById('maintTlName').value.trim();
+            if(!tlName) { alert("⚠️ يرجى إدخال اسم الـ Team Leader أولاً!"); return; }
+
+            const line = document.getElementById('dispatchLine').value;
+            const tech = document.getElementById('dispatchTech').value;
+            const priority = document.getElementById('dispatchPriority').value;
+            const text = document.getElementById('dispatchText').value.trim() || "No descriptive instructions.";
+            const timestamp = new Date().toTimeString().split(' ')[0].substring(0,5);
+
+            const taskPayload = `IM_MAINT_TL_TASK;${document.getElementById('repDate').value};${timestamp};${tlName};${line};${tech};${priority};${text}`;
+
+            const btn = document.getElementById('btnDispatch');
+            btn.innerText = "Transmitting Order... ⏳";
+            btn.disabled = true;
+
+            IMJX.sync(taskPayload)
+            .then(() => {
+                alert(`✅ تم إرسال المهمة بنجاح إلى الفريق الفني: ${tech}`);
+                document.getElementById('dispatchText').value = "";
+                btn.innerText = "Transmit Task to Tech Node 📡";
+                btn.disabled = false;
+            })
+            .catch(err => {
+                console.error(err);
+                alert("❌ خطأ ف الاتصال بالخادم.");
+                btn.innerText = "Transmit Task to Tech Node 📡";
+                btn.disabled = false;
+            });
+        }
+
+        // 📤 تصعيد البلاغات المستعجلة للإدارة
+        function sendAdminNotification() {
+            const tlName = document.getElementById('maintTlName').value.trim();
+            if(!tlName) { alert("⚠️ أدخل اسم الـ Team Leader لتوثيق البلاغ الإداري!"); return; }
+
+            const cat = document.getElementById('adminCategory').value;
+            const impact = document.getElementById('adminImpact').value;
+            const text = document.getElementById('adminText').value.trim() || "No further details.";
+            const timestamp = new Date().toTimeString().split(' ')[0].substring(0,5);
+
+            const adminPayload = `IM_MAINT_TL_ADMIN;${document.getElementById('repDate').value};${timestamp};${tlName};${cat};${impact};${text}`;
+
+            const btn = document.getElementById('btnAdmin');
+            btn.innerText = "Escalating to Administration... ⏳";
+            btn.disabled = true;
+
+            IMJX.sync(adminPayload)
+            .then(() => {
+                alert(`🚨 تم تصعيد التقرير بنجاح لإدارة المصنع بنظام أولوية قصوى.`);
+                document.getElementById('adminText').value = "";
+                btn.innerText = "Push Escalation to Plant Manager 📤";
+                btn.disabled = false;
+            })
+            .catch(err => {
+                console.error(err);
+                alert("❌ فشل الاتصال بمكتب الإدارة.");
+                btn.innerText = "Push Escalation to Plant Manager 📤";
+                btn.disabled = false;
+            });
+        }
+
+        function setSyncUIStatus(state, message) {
+            const ind = document.getElementById('syncIndicator');
+            const txt = document.getElementById('syncStatusText');
+            txt.innerText = message;
+
+            if (state === 'success') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
+                txt.className = "text-[9px] text-emerald-400 uppercase font-mono tracking-wider";
+            } else if (state === 'syncing') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping";
+                txt.className = "text-[9px] text-blue-400 uppercase font-mono tracking-wider";
+            } else if (state === 'pending') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                txt.className = "text-[9px] text-amber-400 uppercase font-mono tracking-wider";
+            } else if (state === 'waiting') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-slate-600";
+                txt.className = "text-[9px] text-slate-400 uppercase font-mono tracking-wider";
+            } else if (state === 'error') {
+                ind.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce";
+                txt.className = "text-[9px] text-red-400 uppercase font-mono tracking-wider font-bold";
+            }
+        }
+
+        function resetLeaderNode() {
+            if (confirm("Clear active maintenance monitoring grid cache?")) {
+                document.getElementById('maintTlName').value = "";
+                for(let i=1; i<=4; i++) {
+                    document.getElementById(`l${i}_mach`).value = "";
+                    document.getElementById(`l${i}_cat`).value = "NONE";
+                    document.getElementById(`l${i}_state`).value = "CLEAR";
+                    document.getElementById(`l${i}_notes`).value = "";
+                    updateRowColor(i);
+                }
+                setSyncUIStatus('waiting', 'Dashboard memory storage purged.');
+            }
+        }
+
+        // تشغيل مظهر الخانات الأولي
+        for(let i=1; i<=4; i++) { updateRowColor(i); }
+        setSyncUIStatus('waiting', 'System terminal online. Key in credentials to connect master sync feed.');
+    </script>
+</body>
+</html>

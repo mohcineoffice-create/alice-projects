@@ -1,0 +1,5 @@
+build/
+iso/
+*.elf
+*.iso
+tools/wallpaper_preview.png
