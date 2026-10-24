@@ -14,6 +14,7 @@ Projects I built from scratch while learning: an operating system, a social phot
 | [`mcp-lqta/`](mcp-lqta) | Read-only MCP server exposing Lqta's public data (stateless JSON-RPC on Vercel) | - |
 | [`calcul-trs-mcp/`](calcul-trs-mcp) | MCP server that computes OEE (TRS) for a production line | - |
 | [`apk-builder/`](apk-builder), [`games/`](games) | WebView APK template built by GitHub Actions, and a memory game | - |
+| [`school-projects/parking-intelligent/`](school-projects/parking-intelligent) | **Smart parking**: Arduino Uno barrier with ultrasonic sensors, LCD and a Wokwi simulation (documents in French) | - |
 
 ## Notes
 - No secrets are stored in this repository. Tokens and keys live in environment variables of the hosting platform.

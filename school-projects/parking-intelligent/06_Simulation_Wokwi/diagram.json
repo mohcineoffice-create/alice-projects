@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "author": "XLab IC",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-arduino-uno",
+      "id": "uno",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-lcd1602",
+      "id": "lcd",
+      "top": -160,
+      "left": 120,
+      "attrs": {
+        "pins": "full"
+      }
+    },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "us_in",
+      "top": -190,
+      "left": -250,
+      "attrs": {
+        "distance": "100"
+      }
+    },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "us_out",
+      "top": -80,
+      "left": -250,
+      "attrs": {
+        "distance": "100"
+      }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo",
+      "top": -170,
+      "left": 330,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_g",
+      "top": -120,
+      "left": -60,
+      "attrs": {
+        "color": "green"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_r",
+      "top": -120,
+      "left": -20,
+      "attrs": {
+        "color": "red"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": -60,
+      "left": -70,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": -60,
+      "left": -30,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz",
+      "top": -120,
+      "left": 40,
+      "attrs": {
+        "volume": "0.1"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "lcd:VSS",
+      "uno:GND.1",
+      "black",
+      []
+    ],
+    [
+      "lcd:VDD",
+      "uno:5V",
+      "red",
+      []
+    ],
+    [
+      "lcd:V0",
+      "uno:GND.1",
+      "black",
+      []
+    ],
+    [
+      "lcd:RS",
+      "uno:A0",
+      "blue",
+      []
+    ],
+    [
+      "lcd:RW",
+      "uno:GND.1",
+      "black",
+      []
+    ],
+    [
+      "lcd:E",
+      "uno:A1",
+      "blue",
+      []
+    ],
+    [
+      "lcd:D4",
+      "uno:A2",
+      "blue",
+      []
+    ],
+    [
+      "lcd:D5",
+      "uno:A3",
+      "blue",
+      []
+    ],
+    [
+      "lcd:D6",
+      "uno:A4",
+      "blue",
+      []
+    ],
+    [
+      "lcd:D7",
+      "uno:A5",
+      "blue",
+      []
+    ],
+    [
+      "lcd:A",
+      "uno:5V",
+      "red",
+      []
+    ],
+    [
+      "lcd:K",
+      "uno:GND.1",
+      "black",
+      []
+    ],
+    [
+      "us_in:VCC",
+      "uno:5V",
+      "red",
+      []
+    ],
+    [
+      "us_in:GND",
+      "uno:GND.1",
+      "black",
+      []
+    ],
+    [
+      "us_in:TRIG",
+      "uno:2",
+      "orange",
+      []
+    ],
+    [
+      "us_in:ECHO",
+      "uno:3",
+      "purple",
+      []
+    ],
+    [
+      "us_out:VCC",
+      "uno:5V",
+      "red",
+      []
+    ],
+    [
+      "us_out:GND",
+      "uno:GND.1",
+      "black",
+      []
+    ],
+    [
+      "us_out:TRIG",
+      "uno:4",
+      "orange",
+      []
+    ],
+    [
+      "us_out:ECHO",
+      "uno:5",
+      "purple",
+      []
+    ],
+    [
+      "servo:GND",
+      "uno:GND.1",
+      "black",
+      []
+    ],
+    [
+      "servo:V+",
+      "uno:5V",
+      "red",
+      []
+    ],
+    [
+      "servo:PWM",
+      "uno:6",
+      "yellow",
+      []
+    ],
+    [
+      "uno:7",
+      "r1:1",
+      "green",
+      []
+    ],
+    [
+      "r1:2",
+      "led_g:A",
+      "green",
+      []
+    ],
+    [
+      "led_g:C",
+      "uno:GND.1",
+      "black",
+      []
+    ],
+    [
+      "uno:8",
+      "r2:1",
+      "red",
+      []
+    ],
+    [
+      "r2:2",
+      "led_r:A",
+      "red",
+      []
+    ],
+    [
+      "led_r:C",
+      "uno:GND.1",
+      "black",
+      []
+    ],
+    [
+      "uno:13",
+      "bz:2",
+      "gray",
+      []
+    ],
+    [
+      "bz:1",
+      "uno:GND.1",
+      "black",
+      []
+    ]
+  ],
+  "dependencies": {}
+}
