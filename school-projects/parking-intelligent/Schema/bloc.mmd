@@ -1,0 +1,11 @@
+flowchart LR
+  A["Capteur ultrason<br/>ENTRÉE (HC-SR04)"] --> M
+  B["Capteur ultrason<br/>SORTIE (HC-SR04)"] --> M
+  M(["Arduino Uno<br/>ATmega328P"])
+  M --> S["Servomoteur SG90<br/>(barrière)"]
+  M --> L["Écran LCD 16x2<br/>(places libres)"]
+  M --> V["LED verte / rouge<br/>(état)"]
+  M --> Z["Buzzer<br/>(alerte)"]
+  P["Alimentation 5 V<br/>(USB)"] --> M
+  classDef x fill:#0B1F3A,stroke:#00B4D8,color:#fff;
+  class M x;

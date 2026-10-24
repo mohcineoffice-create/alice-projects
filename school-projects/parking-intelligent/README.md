@@ -11,4 +11,5 @@ The documents (specification, technical report, slides, jury Q&A, simulation gui
 ## What was verified
 - The sketch compiles for the Arduino Uno with avr-gcc (about 6.2 KB of flash, 291 bytes of RAM).
 - In Wokwi it starts and shows "Places: 4/4"; the entrance scenario lowers the count to 3/4 and moves the servo.
+- A virtual test bench (simavr, in `Outils/banc_test_simavr/`) runs the compiled firmware with simulated sensors, LCD, servo, LEDs and buzzer: 12 of 12 checks pass (start-up, quick pass-by, entry, delayed closing, exit, full lot, exit when full). Models are simplified (ideal sensor, no noise); it does not replace tests on real hardware. It also caught an LCD text longer than 16 columns, now fixed.
 - Not verified: exit, full-parking and timed-closing scenarios in the simulator, any real hardware, and Proteus. Prices in the report are rough estimates.

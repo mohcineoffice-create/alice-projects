@@ -1,0 +1,17 @@
+flowchart TD
+  D(["Démarrage : places = 4, barrière fermée"]) --> M["Mesurer la distance entrée et sortie"]
+  M --> E{"Voiture à l'entrée ?<br/>(d &lt; 15 cm, 3 mesures)"}
+  E -- oui --> P{"Places > 0 ?"}
+  P -- oui --> O["places - 1<br/>ouvrir la barrière, bip court"]
+  P -- non --> C["Bip long<br/>barrière reste fermée"]
+  E -- non --> S
+  O --> S
+  C --> S
+  S{"Voiture à la sortie ?<br/>(d &lt; 15 cm, 3 mesures)"}
+  S -- oui --> U["places + 1 (max 4)<br/>ouvrir la barrière, bip court"]
+  S -- non --> F
+  U --> F{"Barrière ouverte et<br/>zones libres pendant 2 s ?"}
+  F -- oui --> Q["Fermer la barrière"]
+  F -- non --> A["Mettre à jour LCD et LED"]
+  Q --> A
+  A --> M

@@ -61,7 +61,7 @@ void afficher() {
   lcd.print(PLACES_TOTAL);
   lcd.print(F("    "));
   lcd.setCursor(0, 1);
-  lcd.print(places == 0 ? F("   PARKING COMPLET ") : F("   BIENVENUE      "));
+  lcd.print(places == 0 ? F(" PARKING COMPLET") : F("    BIENVENUE   "));  // 16 caracteres exactement
   digitalWrite(PIN_LED_VERTE, places > 0 ? HIGH : LOW);
   digitalWrite(PIN_LED_ROUGE, places == 0 ? HIGH : LOW);
 }

@@ -14,15 +14,17 @@ Carte : Arduino Uno | Niveau : BTS / DUT / licence / école d'ingénieurs | Lang
 | Code/ | Croquis Arduino commenté |
 | Schema/ | Schéma bloc, organigramme, schéma de câblage (PNG + sources) |
 | Proteus/HEX/ | Fichier HEX compilé pour Arduino Uno |
+| Outils/banc_test_simavr/ | Banc de test virtuel facultatif (Linux) |
 
 ## Ce qui a été vérifié par XLab IC
 - Le code se compile sans erreur pour l'Arduino Uno (environ 6,2 Ko de flash, 291 octets de RAM).
 - Le projet Wokwi s'ouvre, démarre et affiche « Places : 4/4 » ; le scénario d'entrée fait passer à 3/4 avec mouvement du servomoteur.
+- Un banc de test virtuel (simavr, dossier Outils/) exécute le vrai programme compilé avec des capteurs, un écran, un servomoteur, des LED et un buzzer simulés : 12 vérifications sur 12 réussies (démarrage, passage rapide, entrée, fermeture temporisée, sortie, parking complet, sortie quand complet).
 
 ## Ce qui n'a PAS été vérifié
 - Aucun essai sur matériel réel.
 - Pas de test sous Proteus (le guide est rédigé, les noms de composants sont à vérifier dans votre version).
-- Sortie, parking complet et fermeture temporisée non exécutés en simulation par XLab IC.
+- Les modèles du banc de test sont simplifiés (capteur idéal, délais de l'écran non vérifiés).
 - Les prix de la nomenclature sont indicatifs.
 
 ## Avant la soutenance
