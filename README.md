@@ -2,6 +2,8 @@
 
 Projects I built from scratch while learning: an operating system, a social photo/video app, an industrial MES, and small tools for AI agents. Everything here is built with the help of Claude (Anthropic) and tested before being published.
 
+![AliceOS 3.0 start menu](aliceos3/screenshots/01-start-menu.png)
+
 | Folder | Project | Live |
 |---|---|---|
 | [`aliceos3/`](aliceos3) | **AliceOS 3.0**: a graphical operating system written in C and x86 assembly (windows, file explorer, task manager, Linux-style shell, file system) | [aliceos.vercel.app](https://aliceos.vercel.app) |
